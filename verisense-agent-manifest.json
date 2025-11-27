@@ -1,7 +1,7 @@
 {
   "name": "style-shepherd-agent",
   "title": "Style Shepherd — Personal Shopper & Makeup Artist Agent",
-  "description": "Voice-first Personal Shopper, Makeup Artist and Style Guide agent that proactively reduces returns by recommending sizes, outfits, and makeup looks based on user profile and trends.",
+  "description": "Voice-first Personal Shopper, Makeup Artist and Style Guide agent that proactively reduces returns by recommending sizes, outfits, and makeup looks based on user profile and trends. Features human-in-the-loop approval workflows for critical actions with full audit trails.",
   "version": "0.1.0",
   "owner": {
     "name": "Lucy Low",
@@ -11,14 +11,20 @@
   "endpoints": {
     "webhook": "https://<YOUR_DEPLOYED_URL>/api/verisense/agent-webhook",
     "ui": "https://<YOUR_DEPLOYED_URL>/verisense-demo",
-    "oauth_callback": "https://<YOUR_DEPLOYED_URL>/api/verisense/oauth-callback"
+    "oauth_callback": "https://<YOUR_DEPLOYED_URL>/api/verisense/oauth-callback",
+    "human_in_the_loop": "https://<YOUR_DEPLOYED_URL>/api/human-in-the-loop/verisense-webhook"
   },
   "scopes": [
     "profile:read",
     "catalog:read",
     "orders:write"
   ],
-  "tags": ["personal-shopper", "makeup", "returns-prevention", "voice-agent", "fashion"],
+  "tags": ["personal-shopper", "makeup", "returns-prevention", "voice-agent", "fashion", "human-in-the-loop"],
+  "capabilities": {
+    "human_in_the_loop": true,
+    "approval_workflows": true,
+    "audit_trail": true
+  },
   "manifestCreatedAt": "2025-11-26T00:00:00Z",
   "notes": "This manifest is a demo/hackathon manifest. Replace <YOUR_DEPLOYED_URL> with your real deployment URL before uploading to the Verisense dashboard."
 }

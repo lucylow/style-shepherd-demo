@@ -1565,5 +1565,151 @@ router.get('/admin/metrics', async (req: Request, res: Response, next: NextFunct
   }
 });
 
+// ===== RAG Agent Routes =====
+// Query the RAG agent
+router.post(
+  '/rag-agent/query',
+  validateBody(
+    z.object({
+      query: z.string().min(1, 'Query is required'),
+      user_id: z.string().optional(),
+      context: z.record(z.any()).optional(),
+      topK: z.number().int().positive().max(20).optional(),
+      includeSources: z.boolean().optional().default(true),
+    })
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { ragAgent } = await import('../services/RAGAgent.js');
+      const response = await ragAgent.query(req.body);
+      res.json(response);
+    } catch (error: any) {
+      console.error('RAG agent query error:', error);
+      res.status(500).json({
+        error: 'rag_agent_query_failed',
+        details: error?.message || String(error),
+      });
+    }
+  }
+);
+
+// Index a document
+router.post(
+  '/rag-agent/index',
+  validateBody(
+    z.object({
+      id: z.string().min(1, 'Document ID is required'),
+      title: z.string().optional(),
+      content: z.string().min(1, 'Content is required'),
+      url: z.string().url().optional(),
+      metadata: z.record(z.any()).optional(),
+    })
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { ragAgent } = await import('../services/RAGAgent.js');
+      await ragAgent.indexDocument(req.body);
+      res.json({ success: true, message: 'Document indexed successfully' });
+    } catch (error: any) {
+      console.error('RAG agent index error:', error);
+      res.status(500).json({
+        error: 'rag_agent_index_failed',
+        details: error?.message || String(error),
+      });
+    }
+  }
+);
+
+// Index multiple documents
+router.post(
+  '/rag-agent/index/batch',
+  validateBody(
+    z.object({
+      documents: z.array(
+        z.object({
+          id: z.string().min(1),
+          title: z.string().optional(),
+          content: z.string().min(1),
+          url: z.string().url().optional(),
+          metadata: z.record(z.any()).optional(),
+        })
+      ).min(1),
+    })
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { ragAgent } = await import('../services/RAGAgent.js');
+      await ragAgent.indexDocuments(req.body.documents);
+      res.json({ 
+        success: true, 
+        message: `Indexed ${req.body.documents.length} documents successfully` 
+      });
+    } catch (error: any) {
+      console.error('RAG agent batch index error:', error);
+      res.status(500).json({
+        error: 'rag_agent_batch_index_failed',
+        details: error?.message || String(error),
+      });
+    }
+  }
+);
+
+// Get index statistics
+router.get(
+  '/rag-agent/stats',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { ragAgent } = await import('../services/RAGAgent.js');
+      const stats = await ragAgent.getIndexStats();
+      res.json(stats);
+    } catch (error: any) {
+      console.error('RAG agent stats error:', error);
+      res.status(500).json({
+        error: 'rag_agent_stats_failed',
+        details: error?.message || String(error),
+      });
+    }
+  }
+);
+
+// Clear the index
+router.delete(
+  '/rag-agent/index',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { ragAgent } = await import('../services/RAGAgent.js');
+      await ragAgent.clearIndex();
+      res.json({ success: true, message: 'Index cleared successfully' });
+    } catch (error: any) {
+      console.error('RAG agent clear error:', error);
+      res.status(500).json({
+        error: 'rag_agent_clear_failed',
+        details: error?.message || String(error),
+      });
+    }
+  }
+);
+
+// Initialize with sample documents
+router.post(
+  '/rag-agent/init-samples',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { initializeRAGWithSamples } = await import('../services/rag-sample-documents.js');
+      await initializeRAGWithSamples();
+      res.json({ 
+        success: true, 
+        message: 'RAG agent initialized with sample documents' 
+      });
+    } catch (error: any) {
+      console.error('RAG agent init error:', error);
+      res.status(500).json({
+        error: 'rag_agent_init_failed',
+        details: error?.message || String(error),
+      });
+    }
+  }
+);
+
 export default router;
 

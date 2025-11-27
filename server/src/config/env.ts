@@ -53,6 +53,7 @@ const envSchema = z.object({
   SENSESPACE_MINIAPP_TOKEN: z.string().optional(),
   SENSESPACE_API_ENDPOINT: z.string().url().optional(),
   AGENT_API_KEY: z.string().optional(), // Agent API key for agent payments
+  VERISENSE_WEBHOOK_SECRET: z.string().optional(), // Webhook secret for verifying Verisense webhooks
   CACHE_TYPE: z.enum(['memory', 'redis']).default('memory'),
   REDIS_URL: z.string().url().optional(),
   

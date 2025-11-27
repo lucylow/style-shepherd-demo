@@ -131,6 +131,7 @@ export class HumanInTheLoopService {
       approvedBy: userId,
       userReasoning,
       auditTrail: {
+        requestPayload: approval.auditTrail?.requestPayload || approval,
         ...approval.auditTrail,
         responsePayload: { approved: true, userId, userReasoning },
         webhookEvents: [
@@ -173,6 +174,7 @@ export class HumanInTheLoopService {
       rejectedBy: userId,
       userReasoning,
       auditTrail: {
+        requestPayload: approval.auditTrail?.requestPayload || approval,
         ...approval.auditTrail,
         responsePayload: { approved: false, userId, userReasoning },
         webhookEvents: [
