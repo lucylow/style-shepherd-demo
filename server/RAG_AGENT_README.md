@@ -8,6 +8,7 @@ The RAG Agent combines vector embeddings with full-text search to provide accura
 
 ## Features
 
+### Core Features
 - **Vector Embeddings**: Uses OpenAI `text-embedding-3-small` for semantic search
 - **Hybrid Search**: Combines vector similarity search with full-text keyword matching
 - **Document Indexing**: Index documents with metadata for efficient retrieval
@@ -15,24 +16,63 @@ The RAG Agent combines vector embeddings with full-text search to provide accura
 - **Source Attribution**: Returns sources with each answer for transparency
 - **Persistent Storage**: Automatically saves and loads index from disk
 
+### Enhanced Features (NEW)
+- **Query Processing**: Query expansion, intent classification, and entity extraction
+- **Document Chunking**: Smart chunking of large documents with overlap
+- **Re-ranking**: Multi-signal reranking with optional LLM-based scoring
+- **Advanced Hybrid Search**: Multiple fusion strategies (RRF, weighted, etc.)
+- **Caching**: Query, embedding, and result caching for performance
+- **Advanced Filtering**: Rich metadata filtering with operators (eq, gt, in, contains, etc.)
+- **Context Management**: Smart context window handling and chunk selection
+
+📖 **See [RAG_IMPROVEMENTS.md](./RAG_IMPROVEMENTS.md) for detailed documentation on all enhancements.**
+
 ## Architecture
 
-### Components
+### Core Components
 
 1. **RAGAgent** (`services/RAGAgent.ts`)
    - Main agent interface
    - Orchestrates retrieval and generation
    - Manages document indexing
+   - **Enhanced**: Now integrates all new retrieval features
 
 2. **VectorStore** (`services/VectorStore.ts`)
    - In-memory vector store with cosine similarity search
    - Persistent storage to disk
-   - Filter support for metadata
+   - **Enhanced**: Advanced metadata filtering with operators
 
 3. **DocumentIndexer** (`services/DocumentIndexer.ts`)
    - Full-text search index
    - Keyword-based matching
    - Complements vector search
+
+### New Components
+
+4. **RAGQueryProcessor** (`services/RAGQueryProcessor.ts`)
+   - Query expansion and analysis
+   - Intent classification
+   - Entity extraction
+
+5. **RAGDocumentChunker** (`services/RAGDocumentChunker.ts`)
+   - Smart document chunking
+   - Overlap management
+   - Metadata preservation
+
+6. **RAGReranker** (`services/RAGReranker.ts`)
+   - Multi-signal reranking
+   - LLM-based relevance scoring
+   - Boost factor calculation
+
+7. **RAGHybridSearch** (`services/RAGHybridSearch.ts`)
+   - Multiple fusion strategies
+   - RRF, weighted, and hybrid fusion
+   - Source tracking
+
+8. **RAGCache** (`services/RAGCache.ts`)
+   - Query result caching
+   - Embedding caching
+   - Automatic cleanup
 
 ## API Endpoints
 
@@ -215,15 +255,39 @@ For production use with large document sets (>10,000), consider:
 2. **Mock Embeddings**: Without OpenAI API key, uses simple hash-based mock embeddings (not production-ready).
 3. **Simple Full-Text Search**: Current full-text search is keyword-based. For production, consider Elasticsearch or similar.
 
+## Enhanced Query Options
+
+The RAG Agent now supports advanced query options:
+
+```typescript
+{
+  query: string;
+  user_id?: string;
+  context?: Record<string, any>;
+  topK?: number;
+  includeSources?: boolean;
+  // NEW OPTIONS:
+  enableQueryExpansion?: boolean;    // Default: true
+  enableReranking?: boolean;         // Default: true
+  enableChunking?: boolean;          // For indexing
+  fusionStrategy?: 'rrf' | 'weighted' | 'reciprocal' | 'weighted_rrf';
+  rerankOptions?: RerankOptions;
+  useCache?: boolean;                // Default: true
+}
+```
+
+See [RAG_IMPROVEMENTS.md](./RAG_IMPROVEMENTS.md) for complete documentation.
+
 ## Future Enhancements
 
-- [ ] Support for chunking large documents
+- [x] Support for chunking large documents ✅
+- [x] Advanced filtering and faceted search ✅
+- [x] Query expansion and refinement ✅
+- [x] Query caching ✅
 - [ ] Integration with external vector databases
-- [ ] Advanced filtering and faceted search
-- [ ] Query expansion and refinement
 - [ ] Multi-modal support (images, etc.)
 - [ ] Streaming responses
-- [ ] Query caching
+- [ ] Query learning from user feedback
 
 ## Testing
 

@@ -7,6 +7,10 @@ import ReturnsCalculator from "@/components/ReturnsCalculator";
 import Testimonials from "@/components/Testimonials";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
+import VerisenseAgentShowcase from "@/components/VerisenseAgentShowcase";
+import VerisenseNetworkStatus from "@/components/VerisenseNetworkStatus";
+import A2ACommunicationVisualizer from "@/components/A2ACommunicationVisualizer";
+import LiveAgentActivity from "@/components/LiveAgentActivity";
 
 const Index = () => {
   return (
@@ -15,8 +19,12 @@ const Index = () => {
       <main id="main">
         <Hero />
         <Features />
+        <VerisenseAgentShowcase />
         <ResearchStats />
+        <VerisenseNetworkStatus />
         <ReturnsCalculator />
+        <A2ACommunicationVisualizer />
+        <LiveAgentActivity />
         <Testimonials />
         <CTASection />
       </main>

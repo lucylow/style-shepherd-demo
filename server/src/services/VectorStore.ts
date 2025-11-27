@@ -13,9 +13,27 @@ export interface VectorDocument {
   metadata: Record<string, any>;
 }
 
+export type FilterOperator = 
+  | 'eq'      // equals
+  | 'ne'      // not equals
+  | 'gt'      // greater than
+  | 'gte'     // greater than or equal
+  | 'lt'      // less than
+  | 'lte'     // less than or equal
+  | 'in'      // in array
+  | 'nin'     // not in array
+  | 'contains' // string contains
+  | 'startsWith' // string starts with
+  | 'endsWith';  // string ends with
+
+export interface FilterCondition {
+  operator?: FilterOperator;
+  value: any;
+}
+
 export interface SearchOptions {
   topK?: number;
-  filter?: Record<string, any>;
+  filter?: Record<string, any | FilterCondition>;
   minScore?: number;
 }
 
@@ -103,12 +121,61 @@ export class VectorStore {
   }
 
   /**
-   * Check if metadata matches filter criteria
+   * Check if metadata matches filter criteria (enhanced with operators)
    */
-  private matchesFilter(metadata: Record<string, any>, filter: Record<string, any>): boolean {
-    for (const [key, value] of Object.entries(filter)) {
-      if (metadata[key] !== value) {
-        return false;
+  private matchesFilter(metadata: Record<string, any>, filter: Record<string, any | FilterCondition>): boolean {
+    for (const [key, condition] of Object.entries(filter)) {
+      const metadataValue = metadata[key];
+      
+      // Simple equality check (backward compatible)
+      if (typeof condition !== 'object' || condition === null || !('operator' in condition)) {
+        if (metadataValue !== condition) {
+          return false;
+        }
+        continue;
+      }
+
+      // Advanced filter with operator
+      const filterCondition = condition as FilterCondition;
+      const { operator = 'eq', value } = filterCondition;
+
+      switch (operator) {
+        case 'eq':
+          if (metadataValue !== value) return false;
+          break;
+        case 'ne':
+          if (metadataValue === value) return false;
+          break;
+        case 'gt':
+          if (typeof metadataValue !== 'number' || metadataValue <= value) return false;
+          break;
+        case 'gte':
+          if (typeof metadataValue !== 'number' || metadataValue < value) return false;
+          break;
+        case 'lt':
+          if (typeof metadataValue !== 'number' || metadataValue >= value) return false;
+          break;
+        case 'lte':
+          if (typeof metadataValue !== 'number' || metadataValue > value) return false;
+          break;
+        case 'in':
+          if (!Array.isArray(value) || !value.includes(metadataValue)) return false;
+          break;
+        case 'nin':
+          if (!Array.isArray(value) || value.includes(metadataValue)) return false;
+          break;
+        case 'contains':
+          if (typeof metadataValue !== 'string' || !metadataValue.includes(value)) return false;
+          break;
+        case 'startsWith':
+          if (typeof metadataValue !== 'string' || !metadataValue.startsWith(value)) return false;
+          break;
+        case 'endsWith':
+          if (typeof metadataValue !== 'string' || !metadataValue.endsWith(value)) return false;
+          break;
+        default:
+          // Unknown operator, treat as equality
+          if (metadataValue !== value) return false;
       }
     }
     return true;

@@ -127,13 +127,17 @@ router.get(
 
       // Handle OAuth errors
       if (error) {
-        console.error('OAuth callback error:', error, error_description);
+        const errorStr = typeof error === 'string' ? error : String(error);
+        const errorDescriptionStr = typeof error_description === 'string' 
+          ? error_description 
+          : error_description ? String(error_description) : undefined;
+        console.error('OAuth callback error:', errorStr, errorDescriptionStr);
         throw new ValidationError(
-          error_description || 'OAuth authentication failed',
+          errorDescriptionStr || 'OAuth authentication failed',
           {
             field: 'oauth_error',
-            value: error,
-            reason: error_description,
+            value: errorStr,
+            reason: errorDescriptionStr,
           }
         );
       }

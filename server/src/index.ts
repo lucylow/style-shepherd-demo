@@ -14,6 +14,7 @@ import apiRoutes from './routes/api.js';
 import sensespaceRoutes from './routes/sensespace.js';
 import verisenseRoutes from './routes/verisense.js';
 import verisenseNucleusRoutes from './routes/verisense-nucleus.js';
+import mcpRoutes from './routes/mcp.js';
 import agentRoutes from './routes/agent.js';
 import humanInTheLoopRoutes from './routes/human-in-the-loop.js';
 import agentPaymentRoutes from './routes/agent-payment.js';
@@ -91,6 +92,7 @@ app.use('/api/vultr', vultrRoutes);
 app.use('/api/sensespace', sensespaceRoutes);
 app.use('/api/verisense', verisenseRoutes); // Alias for /api/sensespace for compatibility
 app.use('/api/verisense-nucleus', verisenseNucleusRoutes); // Verisense Nucleus capabilities
+app.use('/api/mcp', mcpRoutes); // MCP (Model Context Protocol) server for AI agents
 app.use('/api/agent', agentRoutes);
 app.use('/api/agent-payment', agentPaymentRoutes); // Agent payment API routes
 app.use('/api/human-in-the-loop', humanInTheLoopRoutes); // Human-in-the-loop approval system

@@ -1,12 +1,17 @@
 /**
  * RAG Agent Service
- * Retrieval-Augmented Generation Agent with vector embeddings
+ * Enhanced Retrieval-Augmented Generation Agent with advanced features
  */
 
 import OpenAI from 'openai';
 import { llmService } from './LLMService.js';
 import { VectorStore } from './VectorStore.js';
 import { DocumentIndexer } from './DocumentIndexer.js';
+import { queryProcessor, type QueryAnalysis } from './RAGQueryProcessor.js';
+import { documentChunker, type DocumentChunk } from './RAGDocumentChunker.js';
+import { reranker, type RerankOptions } from './RAGReranker.js';
+import { hybridSearch, type FusionStrategy } from './RAGHybridSearch.js';
+import { queryCache, embeddingCache, resultCache } from './RAGCache.js';
 import type { Doc } from './retrieval.js';
 
 export interface RAGQuery {
@@ -15,6 +20,13 @@ export interface RAGQuery {
   context?: Record<string, any>;
   topK?: number;
   includeSources?: boolean;
+  // Enhanced options
+  enableQueryExpansion?: boolean;
+  enableReranking?: boolean;
+  enableChunking?: boolean;
+  fusionStrategy?: FusionStrategy;
+  rerankOptions?: RerankOptions;
+  useCache?: boolean;
 }
 
 export interface RAGResponse {
@@ -22,11 +34,15 @@ export interface RAGResponse {
   sources: Doc[];
   confidence: number;
   query: string;
+  queryAnalysis?: QueryAnalysis;
   metadata?: {
     retrievalTime?: number;
     generationTime?: number;
     totalTime?: number;
     tokensUsed?: number;
+    cacheHit?: boolean;
+    reranked?: boolean;
+    chunksUsed?: number;
   };
 }
 
@@ -52,12 +68,21 @@ export class RAGAgent {
   }
 
   /**
-   * Generate embeddings for text using OpenAI
+   * Generate embeddings for text using OpenAI (with caching)
    */
   private async generateEmbedding(text: string): Promise<number[]> {
+    // Check cache first
+    const cacheKey = embeddingCache.generateKey(text);
+    const cached = embeddingCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     if (!this.openai) {
       // Fallback: simple hash-based mock embedding
-      return this.mockEmbedding(text);
+      const embedding = this.mockEmbedding(text);
+      embeddingCache.set(cacheKey, embedding);
+      return embedding;
     }
 
     try {
@@ -66,10 +91,14 @@ export class RAGAgent {
         input: text,
       });
 
-      return response.data[0].embedding;
+      const embedding = response.data[0].embedding;
+      embeddingCache.set(cacheKey, embedding);
+      return embedding;
     } catch (error) {
       console.warn('Embedding generation failed, using mock:', error);
-      return this.mockEmbedding(text);
+      const embedding = this.mockEmbedding(text);
+      embeddingCache.set(cacheKey, embedding);
+      return embedding;
     }
   }
 
@@ -93,7 +122,7 @@ export class RAGAgent {
   }
 
   /**
-   * Index a document for retrieval
+   * Index a document for retrieval (with optional chunking)
    */
   async indexDocument(
     document: {
@@ -102,28 +131,59 @@ export class RAGAgent {
       content: string;
       url?: string;
       metadata?: Record<string, any>;
-    }
+    },
+    options: { enableChunking?: boolean } = {}
   ): Promise<void> {
     const startTime = Date.now();
-    
-    // Generate embedding for the document
-    const textToEmbed = `${document.title || ''} ${document.content}`.trim();
-    const embedding = await this.generateEmbedding(textToEmbed);
+    const { enableChunking = false } = options;
 
-    // Store in vector store
-    await this.vectorStore.add({
-      id: document.id,
-      embedding,
-      metadata: {
-        title: document.title,
-        content: document.content,
-        url: document.url,
-        ...document.metadata,
-      },
-    });
+    // Chunk document if enabled and content is large
+    if (enableChunking && document.content.length > 2000) {
+      const chunks = documentChunker.chunkDocument(document);
+      console.log(`📑 Document ${document.id} split into ${chunks.length} chunks`);
 
-    // Also index via document indexer for full-text search fallback
-    await this.documentIndexer.index(document);
+      // Index each chunk
+      for (const chunk of chunks) {
+        const textToEmbed = `${chunk.metadata.parentTitle || ''} ${chunk.content}`.trim();
+        const embedding = await this.generateEmbedding(textToEmbed);
+
+        await this.vectorStore.add({
+          id: chunk.id,
+          embedding,
+          metadata: {
+            ...chunk.metadata,
+            content: chunk.content,
+            isChunk: true,
+            parentId: document.id,
+          },
+        });
+
+        await this.documentIndexer.index({
+          id: chunk.id,
+          title: chunk.metadata.parentTitle,
+          content: chunk.content,
+          url: chunk.metadata.parentUrl,
+          metadata: chunk.metadata,
+        });
+      }
+    } else {
+      // Index as single document
+      const textToEmbed = `${document.title || ''} ${document.content}`.trim();
+      const embedding = await this.generateEmbedding(textToEmbed);
+
+      await this.vectorStore.add({
+        id: document.id,
+        embedding,
+        metadata: {
+          title: document.title,
+          content: document.content,
+          url: document.url,
+          ...document.metadata,
+        },
+      });
+
+      await this.documentIndexer.index(document);
+    }
 
     const duration = Date.now() - startTime;
     console.log(`📄 Indexed document ${document.id} in ${duration}ms`);
@@ -154,101 +214,175 @@ export class RAGAgent {
   }
 
   /**
-   * Query the RAG agent
+   * Query the RAG agent (enhanced with all new features)
    */
   async query(ragQuery: RAGQuery): Promise<RAGResponse> {
     const totalStartTime = Date.now();
-    const { query, user_id, context, topK = this.DEFAULT_TOP_K, includeSources = true } = ragQuery;
+    const {
+      query,
+      user_id,
+      context,
+      topK = this.DEFAULT_TOP_K,
+      includeSources = true,
+      enableQueryExpansion = true,
+      enableReranking = true,
+      fusionStrategy = 'weighted_rrf',
+      rerankOptions = {},
+      useCache = true,
+    } = ragQuery;
 
     try {
-      // 1. Generate query embedding
-      const retrievalStartTime = Date.now();
-      const queryEmbedding = await this.generateEmbedding(query);
+      // Check cache first
+      let cacheHit = false;
+      if (useCache) {
+        const cacheKey = queryCache.generateKey(query, { topK, context });
+        const cached = resultCache.get(cacheKey);
+        if (cached) {
+          cacheHit = true;
+          return {
+            ...cached,
+            metadata: {
+              ...cached.metadata,
+              cacheHit: true,
+            },
+          };
+        }
+      }
 
-      // 2. Retrieve relevant documents
-      const searchResults = await this.vectorStore.search(queryEmbedding, {
-        topK,
+      const retrievalStartTime = Date.now();
+
+      // 1. Process and expand query
+      let queryAnalysis: QueryAnalysis | undefined;
+      let queriesToSearch = [query];
+
+      if (enableQueryExpansion) {
+        queryAnalysis = await queryProcessor.processQuery(query);
+        queriesToSearch = [
+          queryAnalysis.originalQuery,
+          ...queryAnalysis.expandedQueries.slice(0, 2), // Use top 2 expansions
+        ];
+        console.log(`🔍 Query expanded: ${queriesToSearch.length} variations`);
+      }
+
+      // 2. Generate embeddings for all query variations
+      const queryEmbeddings = await Promise.all(
+        queriesToSearch.map(q => this.generateEmbedding(q))
+      );
+      const primaryQueryEmbedding = queryEmbeddings[0];
+
+      // 3. Retrieve from vector store (using primary query)
+      const vectorResults = await this.vectorStore.search(primaryQueryEmbedding, {
+        topK: topK * 2, // Retrieve more for reranking
         filter: context,
       });
 
-      // 3. Also try full-text search as fallback
-      const textSearchResults = await this.documentIndexer.search(query, { topK });
+      // 4. Retrieve from text index
+      const textResults = await this.documentIndexer.search(query, {
+        topK: topK * 2,
+      });
 
-      // 4. Combine and deduplicate results
-      const combinedDocs = this.combineSearchResults(searchResults, textSearchResults, topK);
+      // 5. Hybrid search fusion
+      const hybridResults = hybridSearch.fuse(vectorResults, textResults, {
+        strategy: fusionStrategy,
+        topK: enableReranking ? topK * 2 : topK, // More candidates for reranking
+      });
+
+      // 6. Re-rank results if enabled
+      let finalResults = hybridResults;
+      let reranked = false;
+      if (enableReranking && hybridResults.length > 0) {
+        const rerankedResults = await reranker.rerank(query, hybridResults, {
+          ...rerankOptions,
+          topK,
+        });
+        // Create a map of original results by id to preserve source property
+        const originalResultsMap = new Map(hybridResults.map(r => [r.id, r]));
+        finalResults = rerankedResults.map(r => ({
+          id: r.id,
+          score: r.rerankScore,
+          metadata: r.metadata,
+          source: originalResultsMap.get(r.id)?.source || 'hybrid',
+        }));
+        reranked = true;
+        console.log(`🎯 Re-ranked ${finalResults.length} results`);
+      }
 
       const retrievalTime = Date.now() - retrievalStartTime;
 
-      // 5. Generate response using LLM
+      // 7. Generate response using LLM
       const generationStartTime = Date.now();
-      const answer = await this.generateAnswer(query, combinedDocs, user_id, context);
+      const answer = await this.generateAnswer(
+        query,
+        finalResults,
+        user_id,
+        context,
+        queryAnalysis
+      );
       const generationTime = Date.now() - generationStartTime;
 
-      // 6. Format sources
+      // 8. Format sources
       const sources: Doc[] = includeSources
-        ? combinedDocs.map((doc, idx) => ({
+        ? finalResults.map((doc, idx) => ({
             source_id: doc.id,
-            title: doc.metadata?.title,
-            url: doc.metadata?.url,
-            excerpt: this.extractExcerpt(doc.metadata?.content || '', query),
+            title: doc.metadata?.title || doc.metadata?.parentTitle,
+            url: doc.metadata?.url || doc.metadata?.parentUrl,
+            excerpt: this.extractExcerpt(
+              doc.metadata?.content || '',
+              query,
+              200
+            ),
             score: doc.score,
           }))
         : [];
 
       const totalTime = Date.now() - totalStartTime;
 
-      return {
+      const response: RAGResponse = {
         answer,
         sources,
-        confidence: this.calculateConfidence(combinedDocs),
+        confidence: this.calculateConfidence(finalResults),
         query,
+        queryAnalysis,
         metadata: {
           retrievalTime,
           generationTime,
           totalTime,
+          cacheHit,
+          reranked,
+          chunksUsed: finalResults.filter(r => r.metadata?.isChunk).length,
         },
       };
+
+      // Cache result
+      if (useCache && !cacheHit) {
+        const cacheKey = queryCache.generateKey(query, { topK, context });
+        resultCache.set(cacheKey, response);
+      }
+
+      return response;
     } catch (error) {
       console.error('RAG query error:', error);
-      throw new Error(`RAG query failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `RAG query failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
   /**
-   * Combine vector search and text search results
+   * Combine vector search and text search results (deprecated - use hybridSearch instead)
+   * @deprecated Use hybridSearch.fuse() instead
    */
   private combineSearchResults(
     vectorResults: Array<{ id: string; score: number; metadata: any }>,
     textResults: Array<{ id: string; score: number; metadata: any }>,
     topK: number
   ): Array<{ id: string; score: number; metadata: any }> {
-    const combined = new Map<string, { id: string; score: number; metadata: any }>();
-
-    // Add vector search results (weighted higher)
-    vectorResults.forEach(result => {
-      combined.set(result.id, {
-        ...result,
-        score: result.score * 0.7, // Weight vector search
-      });
+    // Use hybrid search for consistency
+    const results = hybridSearch.fuse(vectorResults, textResults, {
+      strategy: 'weighted',
+      topK,
     });
-
-    // Add text search results (merge scores if already exists)
-    textResults.forEach(result => {
-      const existing = combined.get(result.id);
-      if (existing) {
-        existing.score = existing.score + result.score * 0.3;
-      } else {
-        combined.set(result.id, {
-          ...result,
-          score: result.score * 0.3,
-        });
-      }
-    });
-
-    // Sort by score and return top K
-    return Array.from(combined.values())
-      .sort((a, b) => b.score - a.score)
-      .slice(0, topK);
+    return results.map(r => ({ id: r.id, score: r.score, metadata: r.metadata }));
   }
 
   /**
@@ -287,29 +421,53 @@ export class RAGAgent {
   }
 
   /**
-   * Generate answer using LLM with retrieved context
+   * Generate answer using LLM with retrieved context (enhanced)
    */
   private async generateAnswer(
     query: string,
     docs: Array<{ id: string; score: number; metadata: any }>,
     user_id?: string,
-    context?: Record<string, any>
+    context?: Record<string, any>,
+    queryAnalysis?: QueryAnalysis
   ): Promise<string> {
-    // Build context from retrieved documents
+    // Build context from retrieved documents (with better chunk management)
     const contextParts: string[] = [];
 
     if (context) {
       contextParts.push(`User context: ${JSON.stringify(context)}`);
     }
 
-    contextParts.push('Retrieved documents:');
-    docs.forEach((doc, idx) => {
-      const content = doc.metadata?.content || '';
-      const title = doc.metadata?.title || doc.id;
+    // Add query analysis if available
+    if (queryAnalysis) {
       contextParts.push(
-        `[${idx + 1}] ${title} (relevance: ${doc.score.toFixed(2)})\n${content.slice(0, 500)}`
+        `Query intent: ${queryAnalysis.intent} (${queryAnalysis.queryType})`
       );
-    });
+      if (Object.keys(queryAnalysis.entities).length > 0) {
+        contextParts.push(
+          `Extracted entities: ${JSON.stringify(queryAnalysis.entities)}`
+        );
+      }
+    }
+
+    // Manage context window - prioritize high-scoring documents
+    const sortedDocs = [...docs].sort((a, b) => b.score - a.score);
+    let contextLength = 0;
+    const maxContextLength = this.MAX_CONTEXT_LENGTH - 500; // Reserve space for prompt
+
+    contextParts.push('Retrieved documents:');
+    for (const [idx, doc] of sortedDocs.entries()) {
+      const content = doc.metadata?.content || '';
+      const title = doc.metadata?.title || doc.metadata?.parentTitle || doc.id;
+      const docText = `[${idx + 1}] ${title} (relevance: ${doc.score.toFixed(2)})\n${content}`;
+      
+      // Check if adding this doc would exceed context limit
+      if (contextLength + docText.length > maxContextLength && idx > 0) {
+        break; // Stop adding documents if we'd exceed limit
+      }
+      
+      contextParts.push(docText.slice(0, 500)); // Limit individual doc length
+      contextLength += docText.length;
+    }
 
     const contextText = contextParts.join('\n\n');
 

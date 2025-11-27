@@ -255,6 +255,310 @@ console.log(recommendations);
 
 ---
 
+## MCP Server for AI Agents
+
+The Verisense Nucleus services are exposed as **MCP (Model Context Protocol) tools** that AI agents can discover and use. This provides a standardized interface for AI agents to interact with Nucleus capabilities.
+
+### MCP Server Endpoints
+
+The MCP server is available at `/api/mcp`:
+
+```bash
+# List all available MCP tools
+GET /api/mcp/tools
+
+# Get a specific tool definition
+GET /api/mcp/tools/:name
+
+# Execute an MCP tool
+POST /api/mcp/tools/:name/call
+{
+  "arguments": {
+    "key": "user:preferences:123",
+    "value": { "style": "kpop", "size": "M" }
+  }
+}
+
+# Alternative: Execute tool with name in body
+POST /api/mcp/call
+{
+  "tool": "kv_storage_set",
+  "arguments": {
+    "key": "user:preferences:123",
+    "value": { "style": "kpop", "size": "M" }
+  }
+}
+
+# Get MCP server information
+GET /api/mcp/info
+```
+
+### Available MCP Tools
+
+The MCP server exposes the following tools:
+
+#### KV Storage Tools
+
+1. **`kv_storage_set`** - Store a key-value pair
+   ```json
+   {
+     "key": "user:preferences:123",
+     "value": { "style": "kpop", "size": "M" },
+     "ttl": 3600,
+     "overwrite": true
+   }
+   ```
+
+2. **`kv_storage_get`** - Retrieve a value by key
+   ```json
+   {
+     "key": "user:preferences:123"
+   }
+   ```
+
+3. **`kv_storage_delete`** - Delete a key-value pair
+   ```json
+   {
+     "key": "user:preferences:123"
+   }
+   ```
+
+4. **`kv_storage_list`** - List all keys (optionally filtered by prefix)
+   ```json
+   {
+     "prefix": "user:"
+   }
+   ```
+
+5. **`kv_storage_has`** - Check if a key exists
+   ```json
+   {
+     "key": "user:preferences:123"
+   }
+   ```
+
+#### Timer Tools
+
+6. **`timer_create`** - Create a scheduled timer
+   ```json
+   {
+     "id": "daily_sync",
+     "name": "Daily Data Sync",
+     "interval": 86400000,
+     "repeat": true,
+     "action": "sync_data"
+   }
+   ```
+
+7. **`timer_cancel`** - Cancel an active timer
+   ```json
+   {
+     "timerId": "daily_sync"
+   }
+   ```
+
+8. **`timer_list`** - List all active timers
+   ```json
+   {}
+   ```
+
+9. **`timer_status`** - Get status of a specific timer
+   ```json
+   {
+     "timerId": "daily_sync"
+   }
+   ```
+
+#### HTTP Request Tools
+
+10. **`http_request`** - Make an HTTP request
+    ```json
+    {
+      "url": "https://api.example.com/products",
+      "method": "GET",
+      "timeout": 5000,
+      "retry": {
+        "maxRetries": 3,
+        "retryDelay": 1000
+      }
+    }
+    ```
+
+#### Indexer Tools
+
+11. **`indexer_index`** - Index a document
+    ```json
+    {
+      "document": {
+        "userId": "user123",
+        "productId": "prod456",
+        "score": 0.95,
+        "timestamp": "2024-01-01T00:00:00Z"
+      }
+    }
+    ```
+
+12. **`indexer_query`** - Query indexed documents
+    ```json
+    {
+      "queryType": "exact",
+      "field": "userId",
+      "value": "user123",
+      "limit": 10,
+      "sort": {
+        "field": "score",
+        "order": "desc"
+      }
+    }
+    ```
+
+#### Nucleus Management Tools
+
+13. **`nucleus_status`** - Get comprehensive Nucleus status
+    ```json
+    {}
+    ```
+
+14. **`nucleus_deposit`** - Deposit funds to Nucleus
+    ```json
+    {
+      "amount": 50
+    }
+    ```
+
+15. **`nucleus_health`** - Check if Nucleus is operational
+    ```json
+    {}
+    ```
+
+#### Convenience Tools
+
+16. **`user_preferences_store`** - Store user preferences (wrapper)
+    ```json
+    {
+      "userId": "user123",
+      "preferences": {
+        "style": "kpop",
+        "size": "M"
+      }
+    }
+    ```
+
+17. **`user_preferences_get`** - Get user preferences (wrapper)
+    ```json
+    {
+      "userId": "user123"
+    }
+    ```
+
+18. **`recommendation_index`** - Index a product recommendation (wrapper)
+    ```json
+    {
+      "userId": "user123",
+      "productId": "prod456",
+      "score": 0.95,
+      "metadata": { "category": "fashion" }
+    }
+    ```
+
+19. **`recommendation_query`** - Query recommendations (wrapper)
+    ```json
+    {
+      "userId": "user123",
+      "limit": 10,
+      "minScore": 0.8
+    }
+    ```
+
+### Using MCP Tools from AI Agents
+
+AI agents can discover and use these tools through the MCP protocol:
+
+```typescript
+// Example: AI agent using MCP tools
+async function aiAgentWorkflow(userId: string, query: string) {
+  // 1. Discover available tools
+  const toolsResponse = await fetch('http://localhost:3001/api/mcp/tools');
+  const { tools } = await toolsResponse.json();
+  
+  // 2. Get user preferences
+  const prefsResult = await fetch('http://localhost:3001/api/mcp/call', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tool: 'user_preferences_get',
+      arguments: { userId }
+    })
+  });
+  const { result } = await prefsResult.json();
+  const preferences = JSON.parse(result.content[0].text).preferences;
+  
+  // 3. Query recommendations
+  const recsResult = await fetch('http://localhost:3001/api/mcp/call', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tool: 'recommendation_query',
+      arguments: { userId, limit: 5 }
+    })
+  });
+  const { result: recs } = await recsResult.json();
+  const recommendations = JSON.parse(recs.content[0].text).recommendations;
+  
+  // 4. Store updated preferences
+  await fetch('http://localhost:3001/api/mcp/call', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tool: 'user_preferences_store',
+      arguments: {
+        userId,
+        preferences: { ...preferences, lastQuery: query }
+      }
+    })
+  });
+  
+  return recommendations;
+}
+```
+
+### MCP Tool Response Format
+
+All MCP tools return responses in the following format:
+
+```json
+{
+  "success": true,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"success\": true, \"key\": \"user:preferences:123\"}"
+      }
+    ],
+    "isError": false
+  }
+}
+```
+
+Error responses:
+```json
+{
+  "success": false,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"error\": \"Tool not found\", \"tool\": \"invalid_tool\"}"
+      }
+    ],
+    "isError": true
+  }
+}
+```
+
+---
+
 ## API Endpoints
 
 The Nucleus features are exposed via REST API endpoints:

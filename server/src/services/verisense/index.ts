@@ -18,4 +18,6 @@ export { TimerService, type TimerConfig, type TimerStatus } from './TimerService
 export { HttpRequestService, type HttpRequestOptions, type HttpResponse, type HttpRequestStats } from './HttpRequestService.js';
 export { LifecycleService, type LifecycleEvent, type RecoveryData } from './LifecycleService.js';
 export { IndexerService, type IndexerConfig, type IndexQuery, type IndexResult, type IndexSchema, type IndexField, type IndexDefinition } from './IndexerService.js';
+export { MCPServer, type MCPTool, type MCPToolResult } from './MCPServer.js';
+export { StyleShepherdNucleus } from './StyleShepherdNucleus.js';
 

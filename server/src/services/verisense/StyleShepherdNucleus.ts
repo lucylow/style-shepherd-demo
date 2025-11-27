@@ -233,5 +233,33 @@ export class StyleShepherdNucleus {
   canOperate(): boolean {
     return this.lifecycleService.canOperate();
   }
+
+  /**
+   * Get KV Storage service (for MCP server access)
+   */
+  getKVStorage(): KVStorageService {
+    return this.kvStorage;
+  }
+
+  /**
+   * Get Timer service (for MCP server access)
+   */
+  getTimerService(): TimerService {
+    return this.timerService;
+  }
+
+  /**
+   * Get HTTP Request service (for MCP server access)
+   */
+  getHttpService(): HttpRequestService {
+    return this.httpService;
+  }
+
+  /**
+   * Get Indexer service (for MCP server access)
+   */
+  getIndexer(): IndexerService {
+    return this.indexer;
+  }
 }
 
