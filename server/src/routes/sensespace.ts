@@ -126,6 +126,13 @@ router.get(
       const maxRetries = 3;
       let lastError: any = null;
       
+      // Helper to create timeout signal (compatible with older Node.js versions)
+      const createTimeoutSignal = (timeoutMs: number): AbortSignal => {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), timeoutMs);
+        return controller.signal;
+      };
+      
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           const response = await fetch(url, {
@@ -134,8 +141,8 @@ router.get(
               'Content-Type': 'application/json'
             },
             method: 'GET',
-            // Add timeout to prevent hanging requests
-            signal: AbortSignal.timeout(10000), // 10 second timeout
+            // Add timeout to prevent hanging requests (10 second timeout)
+            signal: createTimeoutSignal(10000),
           });
           
           if (!response.ok) {
