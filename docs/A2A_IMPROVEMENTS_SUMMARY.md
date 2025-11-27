@@ -168,3 +168,4 @@ After implementing these improvements, test:
 - Integration Guide: `docs/sensespace/a2a-integration.md`
 - Conventions Guide: `docs/sensespace/a2a-conventions.md`
 
+

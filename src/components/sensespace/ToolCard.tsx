@@ -40,3 +40,4 @@ export function ToolCard({ func, result, className }: ToolCardProps) {
   );
 }
 
+

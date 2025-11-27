@@ -164,3 +164,4 @@ export const queryCache = new RAGCache<any>({ ttl: 3600000, maxSize: 500 }); // 
 export const embeddingCache = new RAGCache<number[]>({ ttl: 86400000, maxSize: 10000 }); // 24 hours
 export const resultCache = new RAGCache<any>({ ttl: 1800000, maxSize: 1000 }); // 30 minutes
 
+

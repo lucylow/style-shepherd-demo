@@ -68,3 +68,4 @@ export function mockPredictAfterBatch(orders: OrderRecord[]): PredictionResult[]
   return orders.map(order => mockPredictAfter(order));
 }
 
+

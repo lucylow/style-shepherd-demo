@@ -194,3 +194,4 @@ curl -X POST http://localhost:3001/api/mcp/call \
 
 The MCP tool features have been significantly improved, providing AI agents with a comprehensive, standardized interface to all Verisense Nucleus capabilities. The implementation follows MCP best practices and provides excellent developer experience with full TypeScript support and comprehensive documentation.
 
+

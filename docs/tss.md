@@ -784,3 +784,4 @@ pub fn sign_with_group(
 
 This mechanism ensures both the security and flexibility of asset control, making it very suitable for decentralized custody, cross-chain bridges, DAO governance, and other multi-party control scenarios.
 
+

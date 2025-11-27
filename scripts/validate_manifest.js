@@ -38,3 +38,4 @@ if (!manifest.endpoints || !manifest.endpoints.webhook || !manifest.endpoints.ui
 console.log('Manifest looks valid ✅');
 process.exit(0);
 
+

@@ -52,3 +52,4 @@ export function MiniAppCard({ id, url, className, onOpen }: MiniAppCardProps) {
   );
 }
 
+

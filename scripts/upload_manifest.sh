@@ -26,3 +26,4 @@ curl -X POST "${REGISTRY_URL%/}/register" \
 
 echo "\nUpload request sent. Check the Verisense Dashboard for registration status."
 
+

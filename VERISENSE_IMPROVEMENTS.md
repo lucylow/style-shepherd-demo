@@ -344,3 +344,4 @@ Potential improvements:
 - [Reverse Gas Mode](https://docs.verisense.network/core-concepts/reverse-gas-mode)
 - [Feature-Rich SDK](https://docs.verisense.network/core-concepts/feature-rich-sdk)
 
+
