@@ -13,7 +13,9 @@ import vultrRoutes from './routes/vultr.js';
 import apiRoutes from './routes/api.js';
 import sensespaceRoutes from './routes/sensespace.js';
 import verisenseRoutes from './routes/verisense.js';
+import verisenseNucleusRoutes from './routes/verisense-nucleus.js';
 import agentRoutes from './routes/agent.js';
+import agentPaymentRoutes from './routes/agent-payment.js';
 import { vultrPostgres } from './lib/vultr-postgres.js';
 import { vultrValkey } from './lib/vultr-valkey.js';
 
@@ -87,7 +89,9 @@ app.get('/health', async (req: express.Request, res: express.Response) => {
 app.use('/api/vultr', vultrRoutes);
 app.use('/api/sensespace', sensespaceRoutes);
 app.use('/api/verisense', verisenseRoutes); // Alias for /api/sensespace for compatibility
+app.use('/api/verisense-nucleus', verisenseNucleusRoutes); // Verisense Nucleus capabilities
 app.use('/api/agent', agentRoutes);
+app.use('/api/agent-payment', agentPaymentRoutes); // Agent payment API routes
 app.use('/api', apiRoutes);
 
 // Root endpoint

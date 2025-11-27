@@ -1809,6 +1809,8 @@ This demo is intended for hackathon judges so you can show profile-driven agent 
 
 We include a machine-readable agent manifest `verisense-agent-manifest.json` at the repo root for registering Style Shepherd as an Agent/MCP on the Verisense dashboard.
 
+> 📖 **For detailed information about MCP features and capabilities, see [MCP Features with Verisense](./docs/MCP_FEATURES_VERISENSE.md)**
+
 ### How to generate / update the manifest
 
 The project includes a helper script that generates or updates the manifest with your deployment URL and contact info:

@@ -52,6 +52,7 @@ const envSchema = z.object({
   // SenseSpace / Verisense
   SENSESPACE_MINIAPP_TOKEN: z.string().optional(),
   SENSESPACE_API_ENDPOINT: z.string().url().optional(),
+  AGENT_API_KEY: z.string().optional(), // Agent API key for agent payments
   CACHE_TYPE: z.enum(['memory', 'redis']).default('memory'),
   REDIS_URL: z.string().url().optional(),
   

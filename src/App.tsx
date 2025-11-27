@@ -39,6 +39,7 @@ import LovableMonitoring from "./pages/LovableMonitoring";
 import LovableSettings from "./pages/LovableSettings";
 import ProfilePage from "./pages/Profile";
 import VerisenseDemoPage from "./pages/VerisenseDemo";
+import AgentPaymentDemo from "./pages/AgentPaymentDemo";
 import LovableAnalytics from "./pages/LovableAnalytics";
 import LovableEnvironment from "./pages/LovableEnvironment";
 import LovableLogs from "./pages/LovableLogs";
@@ -118,6 +119,8 @@ const AppRoutes = () => {
         <Route path="/profile/:id" element={<PageTransition keyProp={location.pathname}><ProfilePage /></PageTransition>} />
         {/* Verisense Demo Route */}
         <Route path="/verisense-demo" element={<PageTransition keyProp={location.pathname}><VerisenseDemoPage /></PageTransition>} />
+        {/* Agent Payment Demo Route */}
+        <Route path="/agent-payment-demo" element={<PageTransition keyProp={location.pathname}><AgentPaymentDemo /></PageTransition>} />
         {/* Admin Routes */}
         <Route path="/admin/metrics" element={<PageTransition keyProp={location.pathname}><AdminMetrics /></PageTransition>} />
         {/* AI Agents Route */}

@@ -2,6 +2,9 @@
  * Payment Card Component
  * Initiates a payment request from the user
  * Based on Verisense SenseSpace Content Rendering specification
+ * 
+ * This is a simple payment card for displaying payment intents.
+ * For full agent payment flows, use AgentPaymentCard instead.
  */
 
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,11 +15,12 @@ import { useState } from 'react';
 
 interface PaymentCardProps {
   intentId: string;
+  amount?: number;
   className?: string;
   onConfirm?: (intentId: string) => Promise<void> | void;
 }
 
-export function PaymentCard({ intentId, className, onConfirm }: PaymentCardProps) {
+export function PaymentCard({ intentId, amount, className, onConfirm }: PaymentCardProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleConfirm = async () => {
@@ -36,6 +40,13 @@ export function PaymentCard({ intentId, className, onConfirm }: PaymentCardProps
     }
   };
 
+  const formatAmount = (amountInDollars: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amountInDollars);
+  };
+
   return (
     <Card className={cn("my-3 border-l-4 border-l-green-500", className)}>
       <CardContent className="p-4">
@@ -45,6 +56,11 @@ export function PaymentCard({ intentId, className, onConfirm }: PaymentCardProps
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground">Payment Request</p>
+            {amount && (
+              <p className="text-xs font-medium text-foreground mt-0.5">
+                {formatAmount(amount)}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">Intent ID: {intentId}</p>
           </div>
           <Button
