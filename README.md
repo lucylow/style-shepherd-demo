@@ -87,6 +87,12 @@ Style Shepherd combines conversational AI with specialized machine learning mode
    - Fit confidence: 92%
    - Environmental impact calculations
 
+5. **Admin Metrics Dashboard**
+   - Navigate to `/admin/metrics` to see judge-focused metrics dashboard
+   - View query latency (median & p95), % prevented returns, MRR, ARR
+   - See trend sparklines and "Why it matters" calculations
+   - Copy stats for pitch presentation
+
 ---
 
 ## 💡 Motivation / Problem Statement
@@ -2256,6 +2262,29 @@ curl -X POST http://localhost:3001/api/rag/query \
 SEARCHABLE_ENDPOINT=https://api.searchable.example
 SEARCHABLE_API_KEY=your_key_here
 ```
+
+---
+
+## Metrics Dashboard (demo)
+
+View a judge-focused metrics dashboard at: `/admin/metrics` after running the dev server.
+
+API:
+
+- `/api/admin/metrics` returns simulated KPIs (query latency, % prevented returns, MRR/ARR, trends).
+
+Pitch guidance for judges (what to say in the 2-minute demo):
+
+- "We reduce returns by X% (demo: 28.4%). On a network of N retailers this saves Y USD in reverse logistics monthly, and we capture Z% of that as recurring revenue, resulting in ~$A MRR uplift."
+
+- Show latency (median & p95) to prove the agent is fast enough for voice commerce.
+
+- Show both environmental and financial wins: fewer returns → less shipping and waste + direct cost savings.
+
+To run locally:
+
+1. `npm run dev`
+2. Open `http://localhost:5173/admin/metrics`
 
 ---
 

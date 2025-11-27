@@ -208,7 +208,7 @@ router.post(
       // Get size recommendation with detailed reasoning
       let recommendedSize = 'M';
       let confidence = 0.75;
-      let reasoning: string[] = [];
+      const reasoning: string[] = [];
 
       if (measurements) {
         const result = await productRecommendationAPI.predictOptimalSize(
@@ -1510,6 +1510,60 @@ router.post(
     }
   }
 );
+
+// Admin Metrics Dashboard
+router.get('/admin/metrics', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    function nowTs() {
+      return new Date().toISOString();
+    }
+
+    const snapshot = {
+      // latency: median and p95
+      query_latency_ms: { median: 210, p95: 620 },
+      // prevented returns: platform-wide estimated % reduction in returns due to Style Shepherd
+      prevented_returns_pct: 28.4, // demo number: 28.4% reduction
+      // revenue (demo)
+      mrr: 145000, // USD
+      arr: 1740000, // USD
+      // other KPIs
+      active_retailers: 87,
+      active_users: 123450,
+      demo_mode: true,
+      generated_at: nowTs(),
+    };
+
+    // trends: last 7 days (demo)
+    const days = 7;
+    const trends = {
+      prevented_returns: Array.from({ length: days }).map((_, i) => {
+        const ts = new Date(Date.now() - (days - i - 1) * 24 * 3600 * 1000).toISOString();
+        return { ts, value: Number((25 + Math.sin(i / 2) * 3 + Math.random() * 2).toFixed(2)) }; // ~25-30%
+      }),
+      query_latency: Array.from({ length: days }).map((_, i) => {
+        const ts = new Date(Date.now() - (days - i - 1) * 24 * 3600 * 1000).toISOString();
+        return { ts, median: 200 + Math.round(Math.random() * 80), p95: 500 + Math.round(Math.random() * 180) };
+      }),
+      revenue: Array.from({ length: days }).map((_, i) => {
+        const ts = new Date(Date.now() - (days - i - 1) * 24 * 3600 * 1000).toISOString();
+        return { ts, mrr: 120000 + i * 4000 + Math.round(Math.random() * 5000) };
+      }),
+    };
+
+    // Assumptions that support "why it matters" calculations (editable in presentation)
+    const assumptions = {
+      avg_order_value: 85, // USD
+      monthly_orders_per_retailer: 2000,
+      retailers_count: snapshot.active_retailers,
+      commission_capture_pct: 0.12, // percent of prevented-return value captured as commission in model
+      baseline_return_rate_pct: 35, // what retailers were seeing before solution
+    };
+
+    return res.status(200).json({ snapshot, trends, assumptions });
+  } catch (error) {
+    next(error);
+  }
+});
 
 export default router;
 
