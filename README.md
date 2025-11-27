@@ -852,6 +852,12 @@ VULTR_VALKEY_PASSWORD=<your_valkey_password>
 
 # Database
 DATABASE_URL=postgresql://user:password@host:port/database
+
+# SenseSpace / Verisense (Optional - for user profiles)
+SENSESPACE_MINIAPP_TOKEN=<your_miniapp_token_here>
+SENSESPACE_API_ENDPOINT=https://api.sensespace.xyz
+CACHE_TYPE=memory
+REDIS_URL=redis://localhost:6379
 ```
 
 ### Running Development Servers
@@ -1550,6 +1556,237 @@ CREATE TABLE returns (
 - **Products**: `./mocks/products/`
 - **Orders**: `./mocks/db.json` (JSON Server)
 - **Stripe Webhooks**: `./mocks/stripe/`
+
+---
+
+## 🔐 SenseSpace (Verisense) Integration
+
+Style Shepherd integrates with SenseSpace (Verisense) MiniApp SDK to securely fetch and display user profiles. The integration includes server-side token management, React hooks for UI, caching, and fallbacks for demo mode.
+
+### Features
+
+- **Secure Token Management**: Server-side endpoint that issues short-lived miniapp tokens to the frontend
+- **User Profile Component**: React component using SDK hooks to display user info and avatar
+- **Caching**: Server-side LRU cache (60s TTL) to reduce API calls
+- **Demo Mode**: Fallback mock routes and JSON data when no real token is configured
+- **Error Handling**: Graceful degradation with loading states and error messages
+
+### Setup
+
+1. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+
+2. **Configure Environment Variables** (in `server/.env`):
+   ```bash
+   # SenseSpace / Verisense
+   SENSESPACE_MINIAPP_TOKEN=<your_miniapp_token_here>    # Optional - leave empty for demo mode
+   SENSESPACE_API_ENDPOINT=https://api.sensespace.xyz    # Default endpoint
+   CACHE_TYPE=memory                                      # or redis
+   REDIS_URL=redis://localhost:6379                       # Optional (only if CACHE_TYPE=redis)
+   ```
+
+3. **Frontend Environment** (optional, in `.env`):
+   ```bash
+   VITE_SENSESPACE_API_ENDPOINT=https://api.sensespace.xyz
+   ```
+
+### Demo Mode (No Token Required)
+
+The integration works out-of-the-box in demo mode when `SENSESPACE_MINIAPP_TOKEN` is not set:
+
+1. Start the backend server:
+   ```bash
+   cd server
+   npm run dev
+   ```
+
+2. Start the frontend:
+   ```bash
+   npm run dev
+   ```
+
+3. Visit the profile page:
+   ```
+   http://localhost:5173/profile/user123
+   ```
+
+The app will automatically use mock profile data from `mocks/sensespace/demo_profile.json`.
+
+### API Endpoints
+
+#### `GET /api/sensespace/token`
+Returns a secure miniapp token for frontend use. In production, this would mint/rotate tokens securely.
+
+**Response** (when token not set):
+```json
+{
+  "token": "demo-token",
+  "demo": true,
+  "source": "mock"
+}
+```
+
+**Response** (when token set):
+```json
+{
+  "token": "<your_token>",
+  "source": "env"
+}
+```
+
+#### `GET /api/sensespace/profile/:id`
+Server-side proxy that fetches user profiles from SenseSpace API with caching.
+
+**Response**:
+```json
+{
+  "id": "user123",
+  "username": "Lucy Low",
+  "email": "low.lucyy@gmail.com",
+  "avatar": "/placeholder.svg",
+  "bio": "K-pop fan, loves sustainable fashion",
+  "preferences": {
+    "size": "M",
+    "style": "kpop"
+  },
+  "_cached": true,
+  "demo": false
+}
+```
+
+### Frontend Components
+
+#### `UserProfile` Component
+
+Located at `src/components/UserProfile.tsx`, this component:
+- Fetches token from server
+- Displays user profile with avatar, username, email, bio
+- Shows loading and error states
+- Includes refresh functionality
+- Supports demo mode indicators
+
+**Usage**:
+```tsx
+import UserProfile from '@/components/UserProfile';
+
+<UserProfile userId="user123" />
+```
+
+#### Profile Page
+
+Located at `src/pages/Profile.tsx`, accessible at `/profile/:id`:
+- Uses React Router for dynamic user IDs
+- Wraps UserProfile component with page layout
+- Handles invalid user IDs gracefully
+
+### Caching
+
+The server uses an LRU cache to store profile data for 60 seconds, reducing API calls to SenseSpace:
+- Cache size: 500 entries
+- TTL: 60 seconds
+- Type: In-memory (or Redis if configured)
+
+Cached responses include `_cached: true` in the response.
+
+### Testing
+
+Run backend tests:
+```bash
+cd server
+npm test
+```
+
+The test suite includes unit tests for:
+- Token endpoint behavior
+- Profile endpoint with and without tokens
+- Caching functionality
+
+### Security Notes
+
+⚠️ **Important**: Never commit tokens to version control. Always use environment variables for `SENSESPACE_MINIAPP_TOKEN`.
+
+The integration uses server-side token management to keep tokens secure. The frontend receives short-lived tokens from the server, never directly accessing the main API token.
+
+### Troubleshooting
+
+**Issue**: Profile page shows "Failed to fetch profile"
+- **Solution**: Check that the backend server is running on port 3001
+- **Solution**: Verify `VITE_API_BASE_URL` is set correctly in frontend `.env`
+
+**Issue**: Always shows demo mode even with token set
+- **Solution**: Ensure `SENSESPACE_MINIAPP_TOKEN` is set in `server/.env` (not root `.env`)
+- **Solution**: Restart the backend server after setting the token
+
+**Issue**: Cache not working
+- **Solution**: Check that `lru-cache` package is installed in `server/`
+- **Solution**: For Redis caching, set `CACHE_TYPE=redis` and provide `REDIS_URL`
+
+### File Structure
+
+```
+├── server/
+│   ├── src/
+│   │   ├── routes/
+│   │   │   └── sensespace.ts          # Backend routes
+│   │   └── config/
+│   │       └── env.ts                 # Environment config (includes SenseSpace vars)
+│   └── tests/
+│       └── unit/
+│           └── sensespace.test.ts     # Unit tests
+├── src/
+│   ├── components/
+│   │   └── UserProfile.tsx            # React profile component
+│   ├── lib/
+│   │   └── sensespace/
+│   │       └── client.ts              # SDK client factory
+│   └── pages/
+│       └── Profile.tsx                # Profile page route
+└── mocks/
+    └── sensespace/
+        └── demo_profile.json          # Mock profile data
+```
+
+---
+
+## Verisense (SenseSpace) Integration
+
+We include a machine-readable agent manifest `verisense-agent-manifest.json` at the repo root for registering Style Shepherd as an Agent/MCP on the Verisense dashboard.
+
+### How to generate / update the manifest
+
+The project includes a helper script that generates or updates the manifest with your deployment URL and contact info:
+
+```bash
+# optional: set environment variables to customize the manifest
+DEPLOY_URL=https://app.example.com OWNER_NAME="Lucy Low" OWNER_EMAIL="low.lucyy@gmail.com" \
+  node scripts/register_agent.cjs
+
+# validate manifest
+node scripts/validate_manifest.cjs
+```
+
+### Uploading to Verisense Dashboard (manual steps)
+
+1. Sign in to the Verisense Dashboard: `https://dashboard.verisense.network/`.
+2. Navigate to **MCP / Agents** and choose **Create new Agent** (or equivalent).
+3. Upload `verisense-agent-manifest.json` or paste the JSON into the manifest upload area.
+4. Follow the dashboard prompts to configure webhooks and credentials. Ensure the webhook URL matches `endpoints.webhook` in the manifest.
+5. If the dashboard requires domain verification or OAuth setup, use the `oauth_callback` URL from the manifest.
+6. After registration, copy any API keys or credentials into your `.env` (do **not** commit keys).
+
+> **Note:** If you have not yet registered the agent on the dashboard, this repository contains the manifest and instructions to do so. Status: **Pending Dashboard registration — manifest included**.
+
+### Demo screenshot
+
+Add a screenshot after you register showing the uploaded manifest / agent in the dashboard and save it as `assets/verisense-registration.png`. The file is included as a placeholder and is optional for submission.
+
+### Acceptance criteria for submission
+
+* `verisense-agent-manifest.json` exists at repo root and validates with `node scripts/validate_manifest.cjs`.
+* `scripts/register_agent.cjs` writes/updates the manifest given DEPLOY_URL environment variable.
+* README contains the steps above and the "Pending Dashboard registration — manifest included" note if not registered.
 
 ---
 
