@@ -11,6 +11,7 @@ import VerisenseAgentShowcase from "@/components/VerisenseAgentShowcase";
 import VerisenseNetworkStatus from "@/components/VerisenseNetworkStatus";
 import A2ACommunicationVisualizer from "@/components/A2ACommunicationVisualizer";
 import LiveAgentActivity from "@/components/LiveAgentActivity";
+import VerisenseFeatureHighlight from "@/components/VerisenseFeatureHighlight";
 
 const Index = () => {
   return (
@@ -19,6 +20,7 @@ const Index = () => {
       <main id="main">
         <Hero />
         <Features />
+        <VerisenseFeatureHighlight />
         <VerisenseAgentShowcase />
         <ResearchStats />
         <VerisenseNetworkStatus />

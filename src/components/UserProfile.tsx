@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, RefreshCw, User, Sparkles, Palette } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useSenseSpaceUserProfile';
-import { getUserIdFromUrl } from '@/lib/sensespace/client';
+import { getUserIdFromUrl, type UserProfileData } from '@/lib/sensespace/client';
 
 export interface UserProfileProps {
   userId: string;
