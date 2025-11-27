@@ -1895,6 +1895,56 @@ Add a screenshot after you register showing the uploaded manifest / agent in the
 
 ---
 
+## Verisense / SenseSpace A2A & MCP registration (how-to)
+
+We include helper scripts to create a machine-readable agent manifest and (optionally) register it with Verisense.
+
+### Generate the manifest (local)
+
+Run:
+
+```
+node scripts/register_agent.js
+```
+
+This writes `verisense-agent-manifest.json` in the repo root. If you have `VERISENSE_API_KEY` and `VERISENSE_REGISTRY_URL` set, the script will try to upload automatically. Otherwise it prints a ready-to-run curl command you can use manually.
+
+### Manual upload (dashboard)
+
+If you prefer to upload from your machine or the Verisense dashboard:
+
+1. Copy `verisense-agent-manifest.json` and in the Verisense Dashboard choose "Register Agent" / "Upload Manifest".
+
+2. Or upload via CLI:
+
+```
+VERISENSE_API_KEY=sk_xxx VERISENSE_REGISTRY_URL=https://dashboard.verisense.network/api/agents ./scripts/upload_manifest.sh
+```
+
+(Replace `sk_xxx` and `VERISENSE_REGISTRY_URL` with your real values.)
+
+### If you cannot register before submitting
+
+Add this note to your submission README or hackathon form:
+
+> Pending Dashboard registration — manifest included (`verisense-agent-manifest.json`). We prepared the agent manifest and automated registration script (`scripts/register_agent.js`); run it and upload via the dashboard to complete registration.
+
+### What to show judges
+
+- Include `examples/verisense_manifest_example.json` in your repo link (visible on GitHub).
+
+- When demoing, show the generated `verisense-agent-manifest.json` file and explain:
+
+  - A2A capability enables agent-to-agent calls
+
+  - MiniApp capability allows interactive UI in SenseSpace
+
+  - MCP flag registers it as a multi-capability plugin (if required)
+
+- If you successfully register: take a screenshot of the Verisense dashboard listing your agent and add to README (or include a "Registered" badge with date).
+
+---
+
 ## 🤖 Autonomous Agent Demo (Poller)
 
 This repo includes a minimal autonomous agent demo that shows the agent acting without manual input:
