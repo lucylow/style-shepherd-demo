@@ -6,6 +6,7 @@ import { useToast } from './ui/use-toast';
 import { VoiceResponse } from '@/types/fashion';
 import { voiceService } from '@/services/voiceService';
 import { cn } from '@/lib/utils';
+import { useAgentAction } from '@/contexts/AgentActionContext';
 
 interface VoiceInterfaceProps {
   onVoiceCommand?: (response: VoiceResponse) => void;
@@ -30,6 +31,7 @@ export const VoiceInterface = ({ onVoiceCommand, userId, className }: VoiceInter
   const [audioLevel, setAudioLevel] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
   const { toast } = useToast();
+  const { requestApproval } = useAgentAction();
   
   const audioChunksRef = useRef<Blob[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -214,6 +216,30 @@ export const VoiceInterface = ({ onVoiceCommand, userId, className }: VoiceInter
     }
   };
 
+  // Detect if voice response contains action intent
+  const detectActionIntent = (response: VoiceResponse): { needsApproval: boolean; actionType?: string } => {
+    const text = response.text?.toLowerCase() || '';
+    const actionKeywords = {
+      'add_to_cart': ['add to cart', 'add to bag', 'buy this', 'purchase', 'add it'],
+      'search_products': ['search for', 'find', 'show me', 'look for'],
+      'recommend_products': ['recommend', 'suggest', 'what should i', 'help me find'],
+      'checkout': ['checkout', 'buy now', 'purchase now', 'complete order'],
+    };
+
+    for (const [actionType, keywords] of Object.entries(actionKeywords)) {
+      if (keywords.some(keyword => text.includes(keyword))) {
+        return { needsApproval: true, actionType };
+      }
+    }
+
+    // If products are suggested, it might need approval
+    if (response.products && response.products.length > 0) {
+      return { needsApproval: true, actionType: 'recommend_products' };
+    }
+
+    return { needsApproval: false };
+  };
+
   const processAudio = async (audioBlob: Blob) => {
     try {
       // Show typing indicator
@@ -235,6 +261,34 @@ export const VoiceInterface = ({ onVoiceCommand, userId, className }: VoiceInter
       await new Promise(resolve => setTimeout(resolve, 500));
       setIsTyping(false);
 
+      // Check if action needs approval
+      const { needsApproval, actionType } = detectActionIntent(response);
+      
+      if (needsApproval && actionType) {
+        // Request human approval before executing action
+        const approved = await requestApproval({
+          type: actionType as any,
+          title: `AI Agent wants to ${actionType.replace(/_/g, ' ')}`,
+          description: response.text || 'The AI agent wants to perform an action based on your voice command.',
+          products: response.products,
+          metadata: {
+            confidence: response.confidence,
+            reasoning: `Based on your voice command: "${response.text}"`,
+          },
+        });
+
+        if (!approved) {
+          // User rejected the action
+          const assistantMessage: Message = {
+            type: 'assistant',
+            content: 'Action cancelled. How else can I help you?',
+            timestamp: Date.now(),
+          };
+          setMessages(prev => [...prev, userMessage, assistantMessage]);
+          return;
+        }
+      }
+
       const assistantMessage: Message = {
         type: 'assistant',
         content: response.text,
@@ -249,6 +303,7 @@ export const VoiceInterface = ({ onVoiceCommand, userId, className }: VoiceInter
         playAudioResponse(response.audioUrl);
       }
       
+      // Only call onVoiceCommand if action was approved or doesn't need approval
       onVoiceCommand?.(response);
     } catch (error: any) {
       console.error('Error processing voice:', error);

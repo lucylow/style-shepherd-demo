@@ -1,0 +1,15 @@
+{
+  "id": "user123",
+  "username": "Lucy Low",
+  "avatar": "/placeholder.svg",
+  "email": "low.lucyy@gmail.com",
+  "created_at": "2025-01-01T00:00:00Z",
+  "bio": "K-pop fan, loves sustainable fashion and dewy makeup.",
+  "preferences": {
+    "size": "M",
+    "style": "kpop",
+    "makeup_pref": "dewy",
+    "favorite_brands": ["DenimCo", "Sunrise Atelier"]
+  }
+}
+

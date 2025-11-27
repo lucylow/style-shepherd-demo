@@ -71,7 +71,7 @@ export async function retrieveDocs(
         return MOCK_DOCS.slice(0, topK);
       }
 
-      const json = await r.json();
+      const json = await r.json() as { results?: any[]; hits?: any[] };
       // Expect json.results array with fields id, title, url, snippet, score
       const results = (json.results || json.hits || [])
         .slice(0, topK)

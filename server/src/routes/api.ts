@@ -1131,12 +1131,17 @@ router.post(
         params,
       });
 
-      // Record analytics
-      await analyticsService.recordSessionAnalytics(
-        userId,
-        result.sessionId,
-        result.analytics
-      );
+      // Record analytics if available
+      if (result.analytics) {
+        await analyticsService.trackEngagementEvent(
+          userId,
+          'agentic_cart_session',
+          {
+            sessionId: result.sessionId,
+            ...result.analytics,
+          }
+        );
+      }
 
       res.json(result);
     } catch (error) {
@@ -1158,21 +1163,51 @@ router.get(
       const { userId, timeRange } = req.query;
 
       if (userId) {
-        const userMetrics = await analyticsService.getUserMetrics(userId as string);
+        const timeRangeObj = timeRange
+          ? (() => {
+              try {
+                const parsed = JSON.parse(timeRange as string);
+                return {
+                  start: new Date(parsed.start).getTime(),
+                  end: new Date(parsed.end).getTime(),
+                };
+              } catch {
+                return {
+                  start: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days ago
+                  end: Date.now(),
+                };
+              }
+            })()
+          : {
+              start: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days ago
+              end: Date.now(),
+            };
+        const userMetrics = await analyticsService.getUserEngagementMetrics(timeRangeObj);
         res.json({ userMetrics });
       } else {
-        let timeRangeObj: { start: Date; end: Date } | undefined;
+        let timeRangeObj: { start: number; end: number } | undefined;
         if (timeRange) {
           try {
-            timeRangeObj = JSON.parse(timeRange as string);
-            timeRangeObj.start = new Date(timeRangeObj.start);
-            timeRangeObj.end = new Date(timeRangeObj.end);
+            const parsed = JSON.parse(timeRange as string);
+            timeRangeObj = {
+              start: new Date(parsed.start).getTime(),
+              end: new Date(parsed.end).getTime(),
+            };
           } catch (error) {
             // Invalid time range, use all time
+            timeRangeObj = {
+              start: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days ago
+              end: Date.now(),
+            };
           }
+        } else {
+          timeRangeObj = {
+            start: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days ago
+            end: Date.now(),
+          };
         }
 
-        const businessMetrics = await analyticsService.getBusinessMetrics(timeRangeObj);
+        const businessMetrics = await analyticsService.getBusinessImpactMetrics(timeRangeObj);
         res.json({ businessMetrics });
       }
     } catch (error) {
@@ -1185,7 +1220,11 @@ router.get(
   '/agentic-cart/impact',
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const impact = await analyticsService.getImpactSummary();
+      const timeRange = {
+        start: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days ago
+        end: Date.now(),
+      };
+      const impact = await analyticsService.getBusinessImpactMetrics(timeRange);
       res.json({ impact });
     } catch (error) {
       next(error);

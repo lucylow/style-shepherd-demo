@@ -5,6 +5,7 @@
 
 import OpenAI from 'openai';
 import env from '../config/env.js';
+import { auditTrailService } from './AuditTrailService.js';
 
 export interface IntentAnalysis {
   intent: string;
@@ -116,14 +117,11 @@ Respond with valid JSON only:
     intentAnalysis: IntentAnalysis,
     conversationHistory: any[],
     userProfile?: any,
-    preferences?: any
+    preferences?: any,
+    metadata?: { sessionId?: string; agentType?: string }
   ): Promise<string> {
-    if (!this.client) {
-      return this.fallbackResponse(query, intentAnalysis, userProfile, preferences);
-    }
-
-    try {
-      const systemPrompt = `You are a friendly and helpful fashion shopping assistant named Style Shepherd. 
+    const startTime = Date.now();
+    const systemPrompt = `You are a friendly and helpful fashion shopping assistant named Style Shepherd. 
 Your personality:
 - Warm, conversational, and enthusiastic about fashion
 - Proactive in offering style advice
@@ -135,6 +133,27 @@ Your personality:
 User profile: ${userProfile ? JSON.stringify(userProfile).substring(0, 200) : 'New user'}
 User preferences: ${preferences ? JSON.stringify(preferences).substring(0, 200) : 'None yet'}`;
 
+    if (!this.client) {
+      const fallbackResponse = this.fallbackResponse(query, intentAnalysis, userProfile, preferences);
+      // Still log audit trail for fallback
+      auditTrailService.saveAuditTrail({
+        userId: userProfile?.id || userProfile?.userId,
+        query,
+        recommendation: { text: fallbackResponse, intent: intentAnalysis.intent },
+        sourceIds: auditTrailService.extractSourceIds({}, userProfile),
+        modelPrompt: systemPrompt,
+        modelName: 'fallback',
+        modelParameters: {},
+        metadata: {
+          ...metadata,
+          processingTime: Date.now() - startTime,
+          fallback: true,
+        },
+      }).catch(console.error);
+      return fallbackResponse;
+    }
+
+    try {
       // Build conversation context (last 5 messages)
       const recentHistory = conversationHistory.slice(-5);
       const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
@@ -155,18 +174,59 @@ User preferences: ${preferences ? JSON.stringify(preferences).substring(0, 200) 
         content: query,
       });
 
-      const response = await this.client.chat.completions.create({
+      const modelParams = {
         model: this.DEFAULT_MODEL,
         messages: messages,
         temperature: 0.7,
         max_tokens: 150,
-      });
+      };
+
+      const response = await this.client.chat.completions.create(modelParams);
 
       const content = response.choices[0]?.message?.content;
-      return content?.trim() || this.fallbackResponse(query, intentAnalysis, userProfile, preferences);
+      const finalResponse = content?.trim() || this.fallbackResponse(query, intentAnalysis, userProfile, preferences);
+
+      // Save audit trail
+      auditTrailService.saveAuditTrail({
+        userId: userProfile?.id || userProfile?.userId,
+        query,
+        recommendation: { text: finalResponse, intent: intentAnalysis.intent, entities: intentAnalysis.entities },
+        sourceIds: auditTrailService.extractSourceIds({}, userProfile),
+        modelPrompt: systemPrompt,
+        modelName: this.DEFAULT_MODEL,
+        modelParameters: {
+          temperature: modelParams.temperature,
+          max_tokens: modelParams.max_tokens,
+        },
+        metadata: {
+          ...metadata,
+          processingTime: Date.now() - startTime,
+          confidence: intentAnalysis.confidence,
+        },
+      }).catch(console.error);
+
+      return finalResponse;
     } catch (error) {
       console.warn('LLM response generation failed, using fallback:', error);
-      return this.fallbackResponse(query, intentAnalysis, userProfile, preferences);
+      const fallbackResponse = this.fallbackResponse(query, intentAnalysis, userProfile, preferences);
+      
+      // Log audit trail for error case
+      auditTrailService.saveAuditTrail({
+        userId: userProfile?.id || userProfile?.userId,
+        query,
+        recommendation: { text: fallbackResponse, intent: intentAnalysis.intent, error: true },
+        sourceIds: auditTrailService.extractSourceIds({}, userProfile),
+        modelPrompt: systemPrompt,
+        modelName: 'fallback-error',
+        modelParameters: {},
+        metadata: {
+          ...metadata,
+          processingTime: Date.now() - startTime,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      }).catch(console.error);
+
+      return fallbackResponse;
     }
   }
 

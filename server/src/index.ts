@@ -11,6 +11,9 @@ import rateLimit from 'express-rate-limit';
 import env from './config/env.js';
 import vultrRoutes from './routes/vultr.js';
 import apiRoutes from './routes/api.js';
+import sensespaceRoutes from './routes/sensespace.js';
+import verisenseRoutes from './routes/verisense.js';
+import agentRoutes from './routes/agent.js';
 import { vultrPostgres } from './lib/vultr-postgres.js';
 import { vultrValkey } from './lib/vultr-valkey.js';
 
@@ -82,6 +85,9 @@ app.get('/health', async (req: express.Request, res: express.Response) => {
 
 // API routes
 app.use('/api/vultr', vultrRoutes);
+app.use('/api/sensespace', sensespaceRoutes);
+app.use('/api/verisense', verisenseRoutes); // Alias for /api/sensespace for compatibility
+app.use('/api/agent', agentRoutes);
 app.use('/api', apiRoutes);
 
 // Root endpoint

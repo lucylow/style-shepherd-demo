@@ -49,6 +49,12 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   
+  // SenseSpace / Verisense
+  SENSESPACE_MINIAPP_TOKEN: z.string().optional(),
+  SENSESPACE_API_ENDPOINT: z.string().url().optional(),
+  CACHE_TYPE: z.enum(['memory', 'redis']).default('memory'),
+  REDIS_URL: z.string().url().optional(),
+  
   // CORS - support multiple origins for Lovable deployment
   CORS_ORIGIN: z.string().default('http://localhost:5173,http://localhost:8080'),
 });

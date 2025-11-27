@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CartItem, Product, VoiceResponse } from '@/types/fashion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAgentAction } from '@/contexts/AgentActionContext';
 import { mockProductService } from '@/services/mockProducts';
 import { mockCartService } from '@/services/mockCart';
 import { toast } from 'sonner';
@@ -46,6 +47,7 @@ const Dashboard = () => {
 
   const { user } = useAuth();
   const userId = user?.id || 'guest';
+  const { requestApproval } = useAgentAction();
 
   useEffect(() => {
     loadInitialData();
@@ -164,10 +166,40 @@ const Dashboard = () => {
   }, [searchQuery, recentSearches, userId, applyFiltersToProducts]);
 
   const handleVoiceCommand = useCallback(async (response: VoiceResponse) => {
+    // Check if voice command suggests adding products to cart
     if (response.products && response.products.length > 0) {
-      setProducts(response.products);
+      const text = response.text?.toLowerCase() || '';
+      const wantsToAdd = text.includes('add') || text.includes('cart') || text.includes('buy');
+      
+      if (wantsToAdd && response.products.length > 0) {
+        // Request approval before adding to cart
+        const approved = await requestApproval({
+          type: 'add_to_cart',
+          title: 'Add products to cart?',
+          description: `The AI wants to add ${response.products.length} product(s) to your cart based on your voice command.`,
+          products: response.products,
+          metadata: {
+            confidence: response.confidence,
+            reasoning: `Based on your voice command: "${response.text}"`,
+          },
+        });
+
+        if (approved) {
+          // Add all products to cart
+          for (const product of response.products) {
+            await handleAddToCart(product);
+          }
+          toast.success(`Added ${response.products.length} product(s) to cart`);
+        }
+      } else {
+        // Just show products, no action needed
+        setProducts(response.products);
+      }
+    } else {
+      // No products, just update display if needed
+      setProducts([]);
     }
-  }, []);
+  }, [requestApproval, handleAddToCart]);
 
   const handleAddToCart = useCallback(async (product: Product) => {
     if (userId === 'guest') {
