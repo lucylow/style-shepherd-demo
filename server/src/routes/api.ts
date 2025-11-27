@@ -17,6 +17,7 @@ import { z } from 'zod';
 import agentRoutes from './agents.js';
 import { retailOrchestrator } from '../services/RetailOrchestrator.js';
 import { analyticsService } from '../services/AnalyticsService.js';
+import { auditTrailService } from '../services/AuditTrailService.js';
 
 const router = Router();
 
@@ -52,6 +53,7 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { userPreferences, context, userId, useLearning } = req.body;
+    const startTime = Date.now();
     
     // Use learning-enhanced recommendations if requested and userId provided
     const recommendations = useLearning && userId
@@ -65,7 +67,42 @@ router.post(
           context || {}
         );
     
-    res.json({ recommendations });
+    // Extract source IDs from recommendations
+    const sourceIds = auditTrailService.extractSourceIds(recommendations);
+    
+    // Build model prompt for audit trail
+    const modelPrompt = `Generate personalized fashion recommendations based on:
+User Preferences: ${JSON.stringify(userPreferences)}
+Context: ${JSON.stringify(context)}
+Use ML models to rank products by style match, price fit, and return risk.`;
+
+    // Save audit trail (non-blocking)
+    auditTrailService.saveAuditTrail({
+      userId,
+      query: `Get recommendations: ${context?.searchQuery || 'general recommendations'}`,
+      recommendation: recommendations,
+      sourceIds,
+      modelPrompt,
+      modelName: 'ProductRecommendationAPI',
+      modelParameters: {
+        useLearning,
+        context,
+      },
+      metadata: {
+        processingTime: Date.now() - startTime,
+        agentType: 'product-recommendation',
+        recommendationCount: recommendations.length,
+      },
+    }).catch(console.error);
+    
+    // Include source IDs in response for transparency
+    res.json({ 
+      recommendations,
+      audit: {
+        sourceIds,
+        timestamp: new Date().toISOString(),
+      },
+    });
   } catch (error) {
       next(error);
     }
@@ -1173,6 +1210,264 @@ router.get(
       res.json({ history });
     } catch (error) {
       next(error);
+    }
+  }
+);
+
+// Recommendation Generation with Audit Trail
+router.post(
+  '/recommendation/generate',
+  validateBody(
+    z.object({
+      user_id: z.string().min(1, 'User ID is required'),
+      query: z.string().min(1, 'Query is required'),
+      model: z
+        .object({
+          name: z.string().optional(),
+          params: z.record(z.any()).optional(),
+        })
+        .optional(),
+    })
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { user_id, query, model } = req.body;
+
+      // Import services dynamically to avoid circular dependencies
+      const { fetchProfile } = await import('../services/verisenseClient.js');
+      const { retrieveDocs } = await import('../services/retrieval.js');
+      const { generateLLMResponse } = await import('../services/recommendationLLM.js');
+      const { computeHash } = await import('../utils/hash.js');
+      const fs = await import('fs');
+      const path = await import('path');
+
+      // 1) Fetch profile (from verisense proxy route)
+      const profile = await fetchProfile(user_id);
+
+      // 2) Retrieve documents (RAG) — replace retrieveDocs() with real index later
+      const docs = await retrieveDocs(query, { topK: 5 });
+
+      // 3) Build prompt (concise; include profile & doc excerpts)
+      const promptParts: string[] = [];
+      promptParts.push(
+        `User profile: ${JSON.stringify({ id: profile.id, preferences: profile.preferences })}`
+      );
+      promptParts.push('Relevant documents (top results):');
+      docs.forEach((d: any, idx: number) => {
+        promptParts.push(
+          `DOC_${idx + 1} [${d.source_id}] (${d.score}): ${d.title || d.url}\nExcerpt: ${d.excerpt}`
+        );
+      });
+      promptParts.push(
+        `\nTask: Based on the user profile and the documents above, produce a short, actionable recommendation for the user's query:\n"${query}"\nReturn: 1) recommendation_text 2) explanation (brief)`
+      );
+      const promptText = promptParts.join('\n\n');
+
+      // 4) Call LLM (mock / real)
+      const modelInfo = model || { name: 'mock-llm', params: { temperature: 0.2 } };
+      const recommendationText = await generateLLMResponse(promptText, docs, modelInfo);
+
+      // 5) Assemble recommendation record
+      const rec: any = {
+        id: `rec-${Date.now()}`,
+        user_id,
+        query,
+        created_at: new Date().toISOString(),
+        model: modelInfo,
+        prompt: promptText,
+        sources: docs.map((d: any) => ({
+          source_id: d.source_id,
+          title: d.title,
+          url: d.url,
+          excerpt: d.excerpt,
+          score: d.score,
+        })),
+        profile_snapshot: profile,
+        recommendation_text: recommendationText,
+        integrity_hash: '',
+      };
+
+      // 6) Compute integrity hash and persist
+      const recWithoutHash = { ...rec };
+      delete recWithoutHash.integrity_hash;
+      const hash = computeHash(JSON.stringify(recWithoutHash));
+      rec.integrity_hash = hash;
+
+      const outDir = path.join(process.cwd(), 'logs', 'recommendations');
+      if (!fs.existsSync(outDir)) {
+        fs.mkdirSync(outDir, { recursive: true });
+      }
+      const outPath = path.join(outDir, `${rec.id}.json`);
+      fs.writeFileSync(outPath, JSON.stringify(rec, null, 2));
+
+      // Append to an index for quick listing
+      const idxPath = path.join(outDir, 'index.json');
+      let idx: any[] = [];
+      if (fs.existsSync(idxPath)) {
+        try {
+          idx = JSON.parse(fs.readFileSync(idxPath, 'utf8'));
+        } catch (e) {
+          idx = [];
+        }
+      }
+      idx.unshift({
+        id: rec.id,
+        user_id: rec.user_id,
+        query: rec.query,
+        created_at: rec.created_at,
+        path: `logs/recommendations/${rec.id}.json`,
+      });
+      fs.writeFileSync(idxPath, JSON.stringify(idx.slice(0, 200), null, 2)); // keep last 200
+
+      return res.status(200).json({
+        recommendation_id: rec.id,
+        path: outPath,
+        recommendation: rec,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// RAG + Memory Demo
+router.post(
+  '/rag/query',
+  validateBody(
+    z.object({
+      user_id: z.string().min(1, 'User ID is required'),
+      query: z.string().min(1, 'Query is required'),
+    })
+  ),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { user_id, query } = req.body;
+
+      // Import services dynamically to avoid circular dependencies
+      const { fetchProfile } = await import('../services/verisenseClient.js');
+      const { retrieveDocs } = await import('../services/retrieval.js');
+      const { recallMemory, appendMemory } = await import('../services/memory.js');
+      const { generateLLMResponse } = await import('../services/recommendationLLM.js');
+      const { computeHash } = await import('../utils/hash.js');
+      const fs = await import('fs');
+      const path = await import('path');
+
+      // 1) Fetch profile snapshot (via existing verisense proxy)
+      const profile = await fetchProfile(user_id);
+
+      // 2) Retrieval: top-3 docs
+      const docs = await retrieveDocs(query, { topK: 3 });
+
+      // 3) Memory recall (simple)
+      const mem = await recallMemory(user_id, query, { topK: 5 });
+
+      // 4) Build prompt: include profile, memory and doc excerpts (explicit)
+      const promptParts: string[] = [];
+      promptParts.push(
+        `User profile (snapshot): ${JSON.stringify({ id: profile.id, preferences: profile.preferences })}`
+      );
+      if (mem && mem.length) {
+        promptParts.push('Memory snippets (most relevant):');
+        mem.forEach((m: any, i: number) => {
+          promptParts.push(`MEM_${i + 1}: ${m.text} (ts: ${m.ts})`);
+        });
+      }
+      promptParts.push('Retrieved documents (top results):');
+      docs.forEach((d: any, i: number) => {
+        promptParts.push(
+          `DOC_${i + 1} [${d.source_id}] (${Number(d.score).toFixed(3)}): ${d.title || d.url}\nExcerpt: ${d.excerpt}`
+        );
+      });
+      promptParts.push(
+        `\nTask: Using the profile, memory and retrieved documents above, answer the user query concisely and include citations using bracketed numbers that map to the documents (e.g., [1],[2]). Query: "${query}"`
+      );
+      const prompt = promptParts.join('\n\n');
+
+      // 5) Call LLM wrapper (mock by default)
+      const modelInfo = {
+        name: process.env.RAG_MODEL_NAME || 'mock-llm',
+        params: { temperature: 0.2 },
+      };
+      const answer = await generateLLMResponse(prompt, docs, modelInfo);
+
+      // 6) Assemble sources array (ordered)
+      const sources = docs.map((d: any, idx: number) => ({
+        rank: idx + 1,
+        source_id: d.source_id,
+        title: d.title,
+        url: d.url,
+        excerpt: d.excerpt,
+        score: d.score,
+      }));
+
+      // 7) Prepare evidence record
+      const recId = `rag-${Date.now()}`;
+      const evidence: any = {
+        id: recId,
+        user_id,
+        query,
+        created_at: new Date().toISOString(),
+        profile_snapshot: profile,
+        memory_used: mem || [],
+        sources,
+        prompt,
+        model: modelInfo,
+        answer,
+      };
+
+      // Compute integrity hash
+      const evidenceWithoutHash = { ...evidence };
+      delete evidenceWithoutHash.integrity_hash;
+      evidence.integrity_hash = computeHash(JSON.stringify(evidenceWithoutHash));
+
+      // Persist evidence to logs/rag/
+      const outDir = path.join(process.cwd(), 'logs', 'rag');
+      if (!fs.existsSync(outDir)) {
+        fs.mkdirSync(outDir, { recursive: true });
+      }
+      const outPath = path.join(outDir, `${recId}.json`);
+      fs.writeFileSync(outPath, JSON.stringify(evidence, null, 2));
+
+      // Append to index
+      const idxPath = path.join(outDir, 'index.json');
+      let idxArr: any[] = [];
+      if (fs.existsSync(idxPath)) {
+        try {
+          idxArr = JSON.parse(fs.readFileSync(idxPath, 'utf8'));
+        } catch (e) {
+          idxArr = [];
+        }
+      }
+      idxArr.unshift({
+        id: recId,
+        user_id,
+        query,
+        created_at: evidence.created_at,
+        path: `logs/rag/${recId}.json`,
+      });
+      fs.writeFileSync(idxPath, JSON.stringify(idxArr.slice(0, 200), null, 2));
+
+      // 8) Optionally store the Q/A pair in memory (append)
+      await appendMemory(user_id, { query, answer, ts: new Date().toISOString() });
+
+      const response = {
+        id: recId,
+        user_id,
+        query,
+        answer,
+        sources,
+        model: modelInfo,
+        created_at: evidence.created_at,
+        evidence_path: outPath,
+      };
+
+      return res.status(200).json(response);
+    } catch (err: any) {
+      console.error('RAG query error', err);
+      return res.status(500).json({
+        error: 'rag_query_failed',
+        details: String(err?.message || err),
+      });
     }
   }
 );

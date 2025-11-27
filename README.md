@@ -1742,11 +1742,60 @@ The integration uses server-side token management to keep tokens secure. The fro
 │   │   └── sensespace/
 │   │       └── client.ts              # SDK client factory
 │   └── pages/
-│       └── Profile.tsx                # Profile page route
+│       ├── Profile.tsx                # Profile page route
+│       └── VerisenseDemo.tsx          # Verisense demo page with agent flows
 └── mocks/
     └── sensespace/
         └── demo_profile.json          # Mock profile data
 ```
+
+---
+
+## Verisense Demo (SenseSpace) — local fallback
+
+This repo includes a demo-mode integration for Verisense / SenseSpace. The demo ensures the app runs even if you don't have a real SenseSpace/Verisense token.
+
+### How to run locally:
+
+1. Install dependencies: `npm install`
+
+2. (Optional) Set a server-side token to fetch live profiles:
+   - `export SENSESPACE_MINIAPP_TOKEN="your_token_here"` (in `server/.env`)
+
+3. Start dev server: 
+   ```bash
+   # Terminal 1 - Backend
+   cd server && npm run dev
+   
+   # Terminal 2 - Frontend
+   npm run dev
+   ```
+
+4. Open demo: `http://localhost:5173/verisense-demo` (or `http://localhost:8080/verisense-demo` depending on your Vite config)
+
+### Behavior:
+
+- If `SENSESPACE_MINIAPP_TOKEN` is set, `/api/sensespace/profile/user123` will proxy to the upstream SenseSpace endpoint.
+- If no token is set, the API returns `mocks/sensespace/demo_profile.json` (demo profile).
+- The UI shows a "demo" flag when demo profile is used.
+
+### Demo Features:
+
+The Verisense Demo page (`/verisense-demo`) includes:
+
+- **Personal Shopper Agent**: Uses profile preferences (style, size) to generate fashion recommendations
+- **Makeup Artist Agent**: Uses `makeup_pref` from profile preferences to suggest makeup looks
+- **Interactive UI**: Click buttons to trigger agent responses based on the loaded profile
+- **Profile Display**: Shows user profile with avatar, bio, and preferences
+
+### Example Demo Flow:
+
+1. Visit `/verisense-demo`
+2. Profile loads automatically (demo mode if no token)
+3. Click "Use as Personal Shopper" to get fashion recommendations based on profile style
+4. Click "Ask Makeup Artist" to get makeup suggestions based on profile preferences
+
+This demo is intended for hackathon judges so you can show profile-driven agent behavior without requiring secret tokens.
 
 ---
 
@@ -1769,12 +1818,60 @@ node scripts/validate_manifest.cjs
 
 ### Uploading to Verisense Dashboard (manual steps)
 
-1. Sign in to the Verisense Dashboard: `https://dashboard.verisense.network/`.
-2. Navigate to **MCP / Agents** and choose **Create new Agent** (or equivalent).
-3. Upload `verisense-agent-manifest.json` or paste the JSON into the manifest upload area.
-4. Follow the dashboard prompts to configure webhooks and credentials. Ensure the webhook URL matches `endpoints.webhook` in the manifest.
-5. If the dashboard requires domain verification or OAuth setup, use the `oauth_callback` URL from the manifest.
-6. After registration, copy any API keys or credentials into your `.env` (do **not** commit keys).
+#### Step-by-Step Registration Instructions
+
+1. **Generate or Update the Manifest**:
+   ```bash
+   # Set your deployment URL (optional, can edit manifest manually)
+   DEPLOY_URL=https://your-deployed-url.com node scripts/register_agent.js
+   
+   # Validate the manifest
+   node scripts/validate_manifest.js
+   ```
+
+2. **Sign in to Verisense Dashboard**:
+   - Navigate to: `https://dashboard.verisense.network/`
+   - Sign in with your Verisense account
+
+3. **Create New Agent**:
+   - Navigate to **MCP / Agents** section
+   - Click **Create new Agent** (or equivalent button)
+   - Choose **Upload manifest** option
+
+4. **Upload Manifest**:
+   - Upload the `verisense-agent-manifest.json` file from the repo root
+   - OR paste the JSON content directly into the manifest upload area
+   - Verify that all endpoints are correctly configured:
+     - `webhook`: `https://your-deployed-url.com/api/verisense/agent-webhook`
+     - `ui`: `https://your-deployed-url.com/verisense-demo`
+     - `oauth_callback`: `https://your-deployed-url.com/api/verisense/oauth-callback`
+
+5. **Configure Webhooks and Credentials**:
+   - Follow the dashboard prompts to set up webhook endpoints
+   - Ensure the webhook URL matches `endpoints.webhook` in the manifest
+   - If required, configure OAuth callback URL to match `endpoints.oauth_callback`
+
+6. **Domain Verification** (if required):
+   - Complete any domain verification steps required by the dashboard
+   - Ensure your deployment URL is accessible and returns valid responses
+
+7. **Save API Keys**:
+   - After registration, copy any API keys or credentials provided
+   - Add them to your `server/.env` file:
+     ```bash
+     VERISENSE_API_KEY=your_api_key_here
+     VERISENSE_WEBHOOK_SECRET=your_webhook_secret_here
+     ```
+   - **Important**: Never commit API keys to version control
+
+8. **Test the Integration**:
+   - Visit `/verisense-demo` on your deployed app
+   - Verify that profile data loads correctly
+   - Test agent interactions (Personal Shopper, Makeup Artist)
+
+#### Screenshot
+
+After registration, take a screenshot of your agent in the Verisense dashboard and save it as `assets/verisense-registration.png`. This demonstrates successful registration.
 
 > **Note:** If you have not yet registered the agent on the dashboard, this repository contains the manifest and instructions to do so. Status: **Pending Dashboard registration — manifest included**.
 
@@ -1784,9 +1881,381 @@ Add a screenshot after you register showing the uploaded manifest / agent in the
 
 ### Acceptance criteria for submission
 
-* `verisense-agent-manifest.json` exists at repo root and validates with `node scripts/validate_manifest.cjs`.
-* `scripts/register_agent.cjs` writes/updates the manifest given DEPLOY_URL environment variable.
-* README contains the steps above and the "Pending Dashboard registration — manifest included" note if not registered.
+* ✅ `verisense-agent-manifest.json` exists at repo root and validates with `node scripts/validate_manifest.cjs`.
+* ✅ `scripts/register_agent.js` writes/updates the manifest given DEPLOY_URL environment variable.
+* ✅ README contains the steps above and the "Pending Dashboard registration — manifest included" note if not registered.
+* ✅ Server routes exist at `/api/verisense/profile/:id` and `/api/verisense/token` (aliased from `/api/sensespace` routes).
+* ✅ Frontend demo page at `/verisense-demo` renders with demo profile `user123` when no token is available.
+
+---
+
+## 🤖 Autonomous Agent Demo (Poller)
+
+This repo includes a minimal autonomous agent demo that shows the agent acting without manual input:
+
+- **`scripts/agent_poller.cjs`** — Run this locally to simulate continuous polling (single-run by default).
+- **`GET /api/agent/run-checks`** — HTTP trigger that runs the same checks and writes demo invoices to `invoices/`.
+- **Demo artifacts**:
+  - `invoices/` contains `demo_invoice_*.json` files created when the agent acts.
+  - `logs/agent_actions.json` is the audit trail (append-only JSON array).
+
+### Configuration (Environment Variables)
+
+- `PREVENTED_VALUE_THRESHOLD` (default: `20.0`) — Minimum prevented return value in currency units to trigger invoice creation
+- `COMMISSION_RATE` (default: `0.15`) — Commission rate (15% of prevented value)
+- `POLL_INTERVAL_SECONDS` (default: `0` → single-run) — Set to a positive number for continuous polling
+
+### Usage
+
+**Run single poll locally:**
+```bash
+node scripts/agent_poller.cjs
+
+# With custom threshold
+PREVENTED_VALUE_THRESHOLD=25.0 node scripts/agent_poller.cjs
+
+# With continuous polling (every 60 seconds)
+POLL_INTERVAL_SECONDS=60 node scripts/agent_poller.cjs
+```
+
+**Trigger HTTP route (dev):**
+```bash
+# Start backend server first
+cd server && npm run dev
+
+# In another terminal, trigger the agent
+curl -s http://localhost:3001/api/agent/run-checks | jq .
+
+# With custom threshold
+curl -s "http://localhost:3001/api/agent/run-checks?threshold=25.0&commission_rate=0.15" | jq .
+```
+
+### How It Works
+
+1. **Poll**: Loads orders from `mocks/catalog.json`
+2. **Predict**: Runs `mockPredictAfter()` on each order to compute `prevented_return_value = (beforeProb - afterProb) * order_value`
+3. **Act**: If `prevented_return_value > THRESHOLD`, creates a demo invoice JSON file in `invoices/` and appends an audit entry to `logs/agent_actions.json`
+4. **Audit**: All actions are logged with timestamps, invoice paths, and evidence (before/after probabilities)
+
+### Example Output
+
+**Poller script:**
+```
+🤖 Style Shepherd Autonomous Agent Poller
+==========================================
+
+=== Starting Agent Poll Cycle ===
+Threshold: $20.00
+Commission Rate: 15.0%
+Timestamp: 2025-01-15T10:00:00Z
+
+Loaded 3 orders from catalog.
+
+[1/3] Processing order ord-1001...
+  Predicted before: 42.0%
+  Predicted after:  34.0%
+  Prevented value:  $7.12
+  ⏭️  Prevented value $7.12 <= threshold $20.00: SKIP
+
+[2/3] Processing order ord-1002...
+  Predicted before: 33.0%
+  Predicted after:  25.0%
+  Prevented value:  $10.32
+  ⏭️  Prevented value $10.32 <= threshold $20.00: SKIP
+
+[3/3] Processing order ord-1003...
+  Predicted before: 28.0%
+  Predicted after:  19.0%
+  Prevented value:  $18.90
+  ⏭️  Prevented value $18.90 <= threshold $20.00: SKIP
+
+=== Poll Cycle Complete ===
+Actions taken: 0
+Orders skipped: 3
+Total processed: 3
+```
+
+**HTTP Response:**
+```json
+{
+  "ok": true,
+  "actions": [],
+  "summary": {
+    "total_orders": 3,
+    "actions_taken": 0,
+    "errors": 0,
+    "threshold": 20.0,
+    "commission_rate": 0.15
+  },
+  "timestamp": "2025-01-15T10:00:00Z"
+}
+```
+
+### Demo Invoice Example
+
+**File**: `invoices/demo_invoice_ord-1003_1705315200000.json`
+```json
+{
+  "invoice_id": "inv-1705315200000-abc123",
+  "retailer": "Maison Bleu",
+  "order_id": "ord-1003",
+  "prevented_value": 18.90,
+  "commission_rate": 0.15,
+  "invoice_amount": 2.84,
+  "created_at": "2025-01-15T10:00:00.000Z",
+  "evidence": {
+    "predicted_before": 0.28,
+    "predicted_after": 0.19,
+    "prevented_probability": 0.09
+  },
+  "order_details": {
+    "product_id": "p-jacket-003",
+    "product_title": "Tailored Wool Blazer",
+    "order_value": 210.0
+  },
+  "note": "Demo invoice generated by Style Shepherd autonomous poller"
+}
+```
+
+### Audit Log Example
+
+**File**: `logs/agent_actions.json`
+```json
+[
+  {
+    "ts": "2025-01-15T10:00:00.000Z",
+    "type": "invoice_created",
+    "invoice_path": "invoices/demo_invoice_ord-1003_1705315200000.json",
+    "invoice_summary": {
+      "invoice_id": "inv-1705315200000-abc123",
+      "order_id": "ord-1003",
+      "prevented_value": 18.90,
+      "invoice_amount": 2.84
+    }
+  }
+]
+```
+
+### Features
+
+- ✅ **No external network calls** — All operations are local (filesystem writes)
+- ✅ **Deterministic predictions** — Same order always produces same prediction (seed-based)
+- ✅ **Human-readable artifacts** — JSON files can be opened and inspected by judges
+- ✅ **Audit trail** — Complete log of all agent actions with timestamps
+- ✅ **Error handling** — Graceful handling of missing files, invalid data, etc.
+- ✅ **Type safety** — TypeScript service with proper types
+- ✅ **Configurable** — Environment variables for threshold and commission rate
+
+### Testing Tips
+
+1. **Adjust threshold** to see more/fewer invoices:
+   ```bash
+   PREVENTED_VALUE_THRESHOLD=10.0 node scripts/agent_poller.cjs
+   ```
+
+2. **Check generated files**:
+   ```bash
+   ls -la invoices/
+   cat logs/agent_actions.json | jq .
+   ```
+
+3. **Test HTTP endpoint**:
+   ```bash
+   curl -s "http://localhost:3001/api/agent/run-checks?threshold=10.0" | jq .
+   ```
+
+4. **Continuous polling** (for demo):
+   ```bash
+   POLL_INTERVAL_SECONDS=30 node scripts/agent_poller.cjs
+   # Press CTRL-C to stop
+   ```
+
+The poller uses `mocks/catalog.json` as input and writes demo invoices & logs. This provides judges a traceable timeline: **poll → prediction → invoice creation**.
+
+---
+
+## 🤖 Autonomous Agent
+
+Style Shepherd includes an autonomous background worker that demonstrates agent autonomy by:
+
+1. **Polling merchant catalog** (mock data from `mocks/catalog.json`)
+2. **Calling returns prediction model** for each order
+3. **Creating demo invoices** when prevented return value exceeds threshold
+4. **Logging all actions** for audit trail
+
+### Running the Autonomous Agent
+
+#### Option 1: HTTP Endpoint (Recommended for Demo)
+
+```bash
+# Trigger agent checks via HTTP
+curl http://localhost:3001/api/agent/run-checks?threshold=20.0&commission_rate=0.15
+
+# Response includes:
+# - Actions taken (invoices created)
+# - Timeline of agent decisions
+# - Summary statistics
+```
+
+#### Option 2: Background Worker Script
+
+```bash
+# Single run
+node scripts/agent_poller.js
+
+# Continuous polling (every 60 seconds)
+POLL_INTERVAL_SECONDS=60 node scripts/agent_poller.js
+
+# Custom threshold
+PREVENTED_VALUE_THRESHOLD=25.0 COMMISSION_RATE=0.15 node scripts/agent_poller.js
+```
+
+### Agent Workflow Timeline
+
+The agent demonstrates autonomy through this timeline:
+
+1. **Data Pull** → Agent loads catalog from `mocks/catalog.json`
+2. **Analysis** → For each order, calls `mockPredictAfter()` to calculate prevented return value
+3. **Decision** → If `prevented_value > threshold`, agent decides to create invoice
+4. **Action** → Agent creates demo invoice JSON in `invoices/` directory
+5. **Logging** → Agent logs action to `logs/agent_actions.json`
+
+### Example Agent Output
+
+```json
+{
+  "ok": true,
+  "actions": [
+    {
+      "order_id": "ord-1001",
+      "invoice_path": "invoices/demo_invoice_ord-1001_1704067200000.json",
+      "invoice": {
+        "invoice_id": "inv-1704067200000-abc123",
+        "order_id": "ord-1001",
+        "prevented_value": 25.50,
+        "invoice_amount": 3.83,
+        "commission_rate": 0.15
+      }
+    }
+  ],
+  "summary": {
+    "total_orders": 3,
+    "actions_taken": 1,
+    "errors": 0,
+    "threshold": 20.0,
+    "commission_rate": 0.15
+  },
+  "timestamp": "2025-01-15T10:00:00.000Z"
+}
+```
+
+### Agent Logs
+
+All agent actions are logged to `logs/agent_actions.json` with timestamps, showing the complete timeline of autonomous decisions.
+
+---
+
+## 📋 Audit Trail for Reproducibility
+
+Every LLM recommendation returned by Style Shepherd includes:
+
+1. **Source IDs**: Product IDs, Verisense profile IDs, and document references
+2. **Model Prompt**: The exact prompt sent to the LLM
+3. **Model Parameters**: Temperature, max tokens, and other configuration
+4. **Metadata**: Processing time, confidence scores, agent type
+
+### Audit Trail Storage
+
+- **File-based**: All audit entries saved to `logs/demo-evidence.json`
+- **Database**: Optional database storage in `audit_trail` table (if configured)
+- **Response Inclusion**: Source IDs included in API responses for transparency
+
+### Example Audit Trail Entry
+
+See `logs/demo-evidence.json` for complete examples. Each entry includes:
+
+```json
+{
+  "id": "audit-1704067200000-abc123def",
+  "timestamp": "2025-01-01T12:00:00.000Z",
+  "userId": "user123",
+  "query": "Find me a blue dress for a wedding",
+  "recommendation": { ... },
+  "sourceIds": [
+    "verisense:user123",
+    "product:p-dress-002",
+    "product:p-dress-015"
+  ],
+  "modelPrompt": "You are a friendly and helpful fashion shopping assistant...",
+  "modelName": "gpt-4o-mini",
+  "modelParameters": {
+    "temperature": 0.7,
+    "max_tokens": 150
+  },
+  "metadata": {
+    "sessionId": "session-001",
+    "agentType": "voice-assistant",
+    "processingTime": 245,
+    "confidence": 0.92
+  }
+}
+```
+
+### Accessing Audit Trail
+
+```bash
+# View audit trail file
+cat logs/demo-evidence.json
+
+# Query audit trail via API (if endpoint implemented)
+curl http://localhost:3001/api/audit-trail?userId=user123&limit=10
+```
+
+### Reproducibility
+
+With the audit trail, you can:
+- **Reproduce recommendations**: Use the exact prompt and parameters
+- **Trace source data**: See which products/profiles influenced the recommendation
+- **Debug issues**: Review processing time, confidence, and error details
+- **Compliance**: Maintain records for regulatory or quality assurance purposes
+
+---
+
+## RAG + Memory Demo
+
+We include a mini RAG + memory demo to show grounded answers with citations.
+
+### API
+
+- **POST /api/rag/query**
+  - Body: `{ "user_id": "user123", "query": "What should I wear to Thanksgiving?" }`
+  - Response: `{ id, user_id, query, answer, sources, model, created_at, evidence_path }`
+
+### How it works (dev/demo)
+
+- If `SEARCHABLE_ENDPOINT` + `SEARCHABLE_API_KEY` are set, the retrieval adapter will query that endpoint (Searchable-like).
+- Otherwise the service falls back to local mock docs (`services/retrieval.ts`).
+- Memory is stored in `logs/memory.json` and recalled by keyword overlap.
+- Evidence + prompt are saved to `logs/rag/<id>.json` (includes prompt, profile snapshot, sources and integrity hash).
+
+### Example
+
+- `node scripts/agent_poller.js` or curl test:
+
+```bash
+curl -X POST http://localhost:3001/api/rag/query \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"user123","query":"What should I wear to Thanksgiving?"}' | jq .
+```
+
+- Check `logs/rag/index.json` and `logs/rag/<id>.json` for the saved audit record.
+
+### To switch to a real Searchable endpoint, set:
+
+```bash
+SEARCHABLE_ENDPOINT=https://api.searchable.example
+SEARCHABLE_API_KEY=your_key_here
+```
 
 ---
 

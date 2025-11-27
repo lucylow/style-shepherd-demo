@@ -1,0 +1,13 @@
+{
+  "user_id": "user123",
+  "query": "What should I wear to Thanksgiving dinner with family?",
+  "expected": {
+    "answer_example": "Choose a warm knit sweater in muted peach paired with mid-rise indigo jeans. (Sources: [1] 2025 Fall Color Trends, [2] DenimCo Fit Guide)",
+    "sources": [
+      { "source_id": "doc:trend-2025-1", "title": "2025 Fall Color Trends" },
+      { "source_id": "doc:brand-denimco-fit-guide", "title": "DenimCo Fit Guide" },
+      { "source_id": "doc:retdata-2024", "title": "Returns Analytics (Q4 2024)" }
+    ]
+  }
+}
+
