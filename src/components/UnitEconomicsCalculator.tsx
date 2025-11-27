@@ -40,8 +40,8 @@ export const UnitEconomicsCalculator = () => {
     const netSavings = costSaved - performanceFee;
     const monthlyCost = 2500; // Pilot/month cost
     const annualCost = monthlyCost * 12;
-    const roi = ((netSavings - annualCost) / annualCost) * 100;
-    const breakEvenMonths = annualCost / (netSavings / 12);
+    const roi = annualCost > 0 ? ((netSavings - annualCost) / annualCost) * 100 : 0;
+    const breakEvenMonths = netSavings > 0 ? annualCost / (netSavings / 12) : Infinity;
 
     return {
       annualReturns,
@@ -52,7 +52,7 @@ export const UnitEconomicsCalculator = () => {
       performanceFee,
       netSavings,
       roi,
-      breakEvenMonths: Math.max(0, breakEvenMonths),
+      breakEvenMonths: isFinite(breakEvenMonths) ? Math.max(0, breakEvenMonths) : Infinity,
     };
   };
 

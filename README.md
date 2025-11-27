@@ -275,6 +275,458 @@ Style Shepherd implements a **production-grade multi-agent architecture** design
 
 ---
 
+## 🔬 Verisense AI Agents: Technical Deep Dive
+
+### How Verisense AI Agents Work
+
+Style Shepherd's AI agents operate on the Verisense network using a combination of **A2A (Agent-to-Agent) protocol** for inter-agent communication and **MCP (Model Context Protocol)** for accessing Verisense Nucleus services. This section explains the technical architecture and data flow.
+
+#### Complete Agent System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Verisense Network Layer                            │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │
+│  │  Agent Registry  │  │  A2A Protocol    │  │  MCP Services    │      │
+│  │  (Discovery)      │  │  (Communication) │  │  (Tool Access)    │      │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘      │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                 │
+                    ┌────────────┴────────────┐
+                    │                         │
+        ┌───────────▼──────────┐   ┌─────────▼──────────┐
+        │  Voice Concierge     │   │  Multi-Agent       │
+        │  Agent (Entry Point) │   │  Orchestrator      │
+        │                      │   │                    │
+        │  - Intent Extraction │   │  - Agent Selection │
+        │  - Entity Recognition│   │  - Parallel Exec  │
+        │  - Response Formatting│   │  - Result Fusion   │
+        │  - MiniApp UI        │   │  - A2A Routing     │
+        └───────────┬──────────┘   └─────────┬──────────┘
+                    │                         │
+                    └────────────┬────────────┘
+                                 │
+        ┌────────────────────────┼────────────────────────┐
+        │                        │                        │
+┌───────▼────────┐   ┌──────────▼──────────┐   ┌────────▼─────────┐
+│ Personal       │   │ Size Oracle Agent   │   │ Returns Prophet  │
+│ Shopper Agent  │   │                     │   │ Agent            │
+│                │   │ - XGBoost Model     │   │                  │
+│ - Style Match  │   │ - Cross-Brand Norm  │   │ - Ensemble Model │
+│ - CLIP Embed   │   │ - Fit Prediction    │   │ - Risk Scoring   │
+│ - Profile Data │   │ - Confidence Calc  │   │ - Mitigation     │
+└───────┬────────┘   └──────────┬──────────┘   └────────┬─────────┘
+        │                       │                       │
+        └───────────────────────┼───────────────────────┘
+                                │
+        ┌───────────────────────┼───────────────────────┐
+        │                       │                       │
+┌───────▼────────┐   ┌──────────▼──────────┐   ┌────────▼─────────┐
+│ Trend Agent    │   │ Makeup Artist      │   │ Autonomous      │
+│                │   │ Agent               │   │ Background      │
+│ - Google Trends│   │                     │   │ Agents          │
+│ - Fashion Week │   │ - Color Matching    │   │                 │
+│ - Style Scoring│   │ - Product Recs      │   │ - Polling       │
+│                │   │ - Preference Based  │   │ - Invoice Gen   │
+└────────────────┘   └─────────────────────┘   └─────────────────┘
+                                │
+                    ┌───────────┴───────────┐
+                    │                       │
+        ┌───────────▼──────────┐  ┌─────────▼──────────┐
+        │  Verisense Nucleus    │  │  External Services │
+        │  (MCP Services)       │  │  (Agent-to-Site)  │
+        │                       │  │                    │
+        │  ┌─────────────────┐ │  │  - Product APIs    │
+        │  │ KV Storage       │ │  │  - Google Trends   │
+        │  │ - User Prefs    │ │  │  - Fashion Data    │
+        │  │ - Size Data     │ │  │  - Merchant APIs   │
+        │  │ - Cache         │ │  └────────────────────┘
+        │  └─────────────────┘ │
+        │  ┌─────────────────┐ │
+        │  │ Timer Service   │ │
+        │  │ - Scheduled     │ │
+        │  │ - Recurring    │ │
+        │  │ - One-time     │ │
+        │  └─────────────────┘ │
+        │  ┌─────────────────┐ │
+        │  │ HTTP Service    │ │
+        │  │ - Retry Logic   │ │
+        │  │ - Timeout       │ │
+        │  │ - Proactive     │ │
+        │  └─────────────────┘ │
+        │  ┌─────────────────┐ │
+        │  │ Indexer Service │ │
+        │  │ - Query Engine  │ │
+        │  │ - Fast Retrieval│ │
+        │  │ - Complex Queries│
+        │  └─────────────────┘ │
+        └───────────────────────┘
+```
+
+#### A2A Communication Flow
+
+The **Agent-to-Agent (A2A) Protocol** enables agents to communicate seamlessly using JSON-RPC 2.0 and Server-Sent Events (SSE):
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    A2A Communication Pattern                   │
+└─────────────────────────────────────────────────────────────────┘
+
+User Query: "Find me a blue dress for a wedding"
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Voice Concierge Agent (A2A Initiator)                         │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │ 1. Intent Extraction: "search_product"                    │  │
+│  │ 2. Entity Recognition: {color: "blue", category: "dress"}│  │
+│  │ 3. A2A Request Formation                                 │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└───────────────────────┬──────────────────────────────────────────┘
+                       │
+                       │ A2A JSON-RPC Request
+                       │ {
+                       │   "jsonrpc": "2.0",
+                       │   "method": "agent/recommend",
+                       │   "params": {
+                       │     "agent": "personal-shopper",
+                       │     "query": {...},
+                       │     "userId": "user123"
+                       │   }
+                       │ }
+                       ▼
+        ┌──────────────────────────────────────────────┐
+        │  Multi-Agent Orchestrator (A2A Router)       │
+        │  - Routes to appropriate agents               │
+        │  - Manages parallel execution                 │
+        │  - Aggregates responses                      │
+        └───────────────┬──────────────────────────────┘
+                        │
+        ┌───────────────┼───────────────┐
+        │               │               │
+        ▼               ▼               ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│ Personal      │ │ Size Oracle  │ │ Returns      │
+│ Shopper       │ │ Agent        │ │ Prophet      │
+│ Agent         │ │              │ │ Agent        │
+│               │ │              │ │              │
+│ A2A Response: │ │ A2A Response:│ │ A2A Response:│
+│ {             │ │ {            │ │ {            │
+│   "products": │ │   "size":    │ │   "risk":    │
+│   [...],      │ │   "M",       │ │   0.12,      │
+│   "score":    │ │   "conf":    │ │   "factors": │
+│   0.88        │ │   0.92       │ │   [...]      │
+│ }             │ │ }            │ │ }            │
+└───────┬───────┘ └───────┬───────┘ └───────┬───────┘
+        │                 │                 │
+        └─────────────────┼─────────────────┘
+                          │
+                          ▼
+        ┌──────────────────────────────────────────────┐
+        │  Result Aggregation & Fusion                │
+        │  - Combines agent outputs                     │
+        │  - Calculates final scores                   │
+        │  - Applies confidence weighting              │
+        └───────────────────┬──────────────────────────┘
+                            │
+                            ▼
+        ┌──────────────────────────────────────────────┐
+        │  Voice Concierge Agent (Response Formatting)│
+        │  - Natural language generation               │
+        │  - SSE streaming to user                     │
+        └───────────────────┬──────────────────────────┘
+                            │
+                            ▼
+                    User Response
+```
+
+#### MCP Services Integration
+
+Agents use **MCP (Model Context Protocol)** to access Verisense Nucleus services:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              MCP Services Usage by Agents                       │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Personal Shopper Agent                                         │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │ MCP KV Storage:                                           │  │
+│  │   - Store user style preferences                          │  │
+│  │   - Cache product recommendations                         │  │
+│  │   - TTL: 1 hour for preferences, 24h for cache            │  │
+│  │                                                           │  │
+│  │ MCP Indexer:                                              │  │
+│  │   - Index products by style match score                   │  │
+│  │   - Query: "find products where style_score > 0.8"        │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Size Oracle Agent                                              │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │ MCP KV Storage:                                           │  │
+│  │   - Store brand sizing matrices                           │  │
+│  │   - Cache size predictions                                │  │
+│  │   - Key: "brand:Zara:category:dress"                      │  │
+│  │                                                           │  │
+│  │ MCP HTTP Service:                                         │  │
+│  │   - Fetch latest brand size charts                        │  │
+│  │   - Retry logic: 3 attempts, exponential backoff          │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Returns Prophet Agent (Autonomous)                            │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │ MCP Timer Service:                                        │  │
+│  │   - Scheduled polling every hour                           │  │
+│  │   - Timer ID: "return_prediction_poll"                    │  │
+│  │   - Callback: predictAndCreateInvoices()                  │  │
+│  │                                                           │  │
+│  │ MCP KV Storage:                                           │  │
+│  │   - Store prediction results                              │  │
+│  │   - Cache risk scores (TTL: 12 hours)                     │  │
+│  │                                                           │  │
+│  │ MCP Indexer:                                              │  │
+│  │   - Index orders by risk score                            │  │
+│  │   - Query: "find orders where risk > 0.3"                │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  Trend Agent                                                    │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │ MCP Timer Service:                                        │  │
+│  │   - Daily trend data refresh                              │  │
+│  │   - Timer ID: "trend_refresh"                             │  │
+│  │                                                           │  │
+│  │ MCP HTTP Service:                                         │  │
+│  │   - Fetch Google Trends data                               │  │
+│  │   - Fetch fashion week information                         │  │
+│  │   - Proactive caching with retry                          │  │
+│  │                                                           │  │
+│  │ MCP KV Storage:                                           │  │
+│  │   - Cache trend scores (TTL: 24 hours)                   │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Agent Coordination Sequence Diagram
+
+```
+┌─────────────┐  ┌──────────────┐  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐
+│   User      │  │ Voice        │  │ Orchestrator│  │ Personal     │  │ Size Oracle │
+│             │  │ Concierge    │  │             │  │ Shopper      │  │             │
+└──────┬──────┘  └──────┬───────┘  └──────┬──────┘  └──────┬───────┘  └──────┬──────┘
+       │                │                 │                 │                 │
+       │ "Find blue     │                 │                 │                 │
+       │  dress"        │                 │                 │                 │
+       ├───────────────>│                 │                 │                 │
+       │                │                 │                 │                 │
+       │                │ Extract Intent   │                 │                 │
+       │                │ & Entities      │                 │                 │
+       │                │                 │                 │                 │
+       │                │ A2A Request     │                 │                 │
+       │                ├────────────────>│                 │                 │
+       │                │                 │                 │                 │
+       │                │                 │ Parallel A2A    │                 │
+       │                │                 │ Requests        │                 │
+       │                │                 ├─────────────────┼────────────────>│
+       │                │                 │                 │                 │
+       │                │                 │                 │ Style Match     │
+       │                │                 │                 │ (MCP KV Read)   │
+       │                │                 │                 │                 │
+       │                │                 │                 │ Size Predict   │
+       │                │                 │                 │ (MCP Indexer)  │
+       │                │                 │                 │                 │
+       │                │                 │                 │ A2A Response   │
+       │                │                 │<────────────────┼─────────────────┤
+       │                │                 │                 │                 │
+       │                │                 │ Aggregate       │                 │
+       │                │                 │ Results         │                 │
+       │                │                 │                 │                 │
+       │                │ A2A Response    │                 │                 │
+       │                │<────────────────┤                 │                 │
+       │                │                 │                 │                 │
+       │                │ Format Response │                 │                 │
+       │                │ (Natural Lang)  │                 │                 │
+       │                │                 │                 │                 │
+       │ "I found 5     │                 │                 │                 │
+       │  blue dresses..."│                 │                 │                 │
+       │<───────────────┤                 │                 │                 │
+       │                │                 │                 │                 │
+```
+
+#### Technical Implementation Details
+
+**1. A2A Protocol Implementation**
+
+Agents communicate using JSON-RPC 2.0 over HTTP/SSE:
+
+```typescript
+// A2A Request Format
+interface A2ARequest {
+  jsonrpc: "2.0";
+  id: number;
+  method: string;  // e.g., "agent/recommend", "agent/predict"
+  params: {
+    agent: string;      // Target agent identifier
+    query: AgentQuery;  // Query parameters
+    userId: string;     // User context
+    sessionId?: string; // Optional session tracking
+  };
+}
+
+// A2A Response Format
+interface A2AResponse {
+  jsonrpc: "2.0";
+  id: number;
+  result?: {
+    status: "success" | "error";
+    data: any;
+    confidence: number;
+    reasoning: string[];
+  };
+  error?: {
+    code: number;
+    message: string;
+    data?: any;
+  };
+}
+```
+
+**2. MCP Service Integration**
+
+Agents access Verisense Nucleus services through MCP:
+
+```typescript
+// Example: Personal Shopper Agent using MCP KV Storage
+class PersonalShopperAgent {
+  async recommend(userId: string, query: string) {
+    // 1. Check MCP KV Storage for cached preferences
+    const cached = await nucleus.kvStorage.get(`prefs:${userId}`);
+    if (cached) return cached;
+    
+    // 2. Fetch user profile via A2A (if needed)
+    const profile = await this.fetchProfileViaA2A(userId);
+    
+    // 3. Generate recommendations
+    const recommendations = await this.generateRecs(profile, query);
+    
+    // 4. Store in MCP KV Storage with TTL
+    await nucleus.kvStorage.set(
+      `prefs:${userId}`,
+      recommendations,
+      { ttl: 3600 } // 1 hour
+    );
+    
+    // 5. Index in MCP Indexer for fast queries
+    await nucleus.indexer.index({
+      userId,
+      recommendations,
+      score: 0.88,
+      timestamp: Date.now()
+    });
+    
+    return recommendations;
+  }
+}
+```
+
+**3. Autonomous Agent Operations**
+
+The Returns Prophet Agent demonstrates autonomous operation:
+
+```typescript
+// Returns Prophet Agent with MCP Timer Service
+class ReturnsProphetAgent {
+  async initialize() {
+    // Register autonomous polling timer via MCP
+    await nucleus.timerService.createTimer({
+      id: 'return_prediction_poll',
+      interval: 60 * 60 * 1000, // Every hour
+      repeat: true,
+      callback: async () => {
+        await this.autonomousPollAndPredict();
+      }
+    });
+  }
+  
+  async autonomousPollAndPredict() {
+    // 1. Poll merchant catalog via MCP HTTP Service
+    const orders = await nucleus.httpService.get(
+      'https://api.merchant.com/orders/pending',
+      { timeout: 10000, retry: { maxRetries: 3 } }
+    );
+    
+    // 2. Predict return risk for each order
+    for (const order of orders) {
+      const risk = await this.predictReturnRisk(order);
+      
+      // 3. Store prediction in MCP KV Storage
+      await nucleus.kvStorage.set(
+        `risk:${order.id}`,
+        risk,
+        { ttl: 12 * 3600 } // 12 hours
+      );
+      
+      // 4. If prevented value > threshold, create invoice
+      if (risk.preventedValue > 20.0) {
+        await this.createInvoice(order, risk);
+      }
+    }
+  }
+}
+```
+
+**4. Agent State Management**
+
+Agents maintain state through Verisense Nucleus:
+
+```typescript
+// Agent state stored in Nucleus
+interface AgentState {
+  // Stored in MCP KV Storage
+  userPreferences: Map<string, UserPrefs>;
+  sizePredictions: Map<string, SizePrediction>;
+  riskScores: Map<string, RiskScore>;
+  
+  // Indexed in MCP Indexer
+  recommendations: Recommendation[];
+  orders: Order[];
+  
+  // Managed by MCP Timer Service
+  scheduledTasks: Timer[];
+  
+  // Tracked by Nucleus Service
+  balance: number;
+  operations: number;
+}
+```
+
+#### Performance Characteristics
+
+| Agent | Latency | Throughput | MCP Services Used |
+|-------|---------|------------|-------------------|
+| **Voice Concierge** | <500ms | 100 req/s | KV Storage, Indexer |
+| **Personal Shopper** | <300ms | 200 req/s | KV Storage, Indexer |
+| **Size Oracle** | <200ms | 500 req/s | KV Storage, HTTP Service |
+| **Returns Prophet** | <100ms | 1000 req/s | KV Storage, Timer, Indexer |
+| **Trend Agent** | <400ms | 50 req/s | HTTP Service, Timer, KV Storage |
+
+#### Error Handling & Resilience
+
+Agents implement robust error handling:
+
+1. **A2A Communication Failures**: Automatic retry with exponential backoff
+2. **MCP Service Unavailability**: Graceful degradation to local cache
+3. **Agent Timeouts**: Circuit breaker pattern to prevent cascade failures
+4. **Data Consistency**: Transaction-like semantics for multi-agent operations
+
+---
+
 ## 🎯 Agent Capabilities & MCP Features
 
 ### MCP (Model Context Protocol) Capabilities

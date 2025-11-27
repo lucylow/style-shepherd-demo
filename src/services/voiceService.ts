@@ -40,6 +40,17 @@ class VoiceService {
       return state;
     } catch (error: any) {
       console.error('Failed to start conversation:', error);
+      
+      // Check error type and provide appropriate fallback
+      if (error.code === 'NETWORK_ERROR' || !error.response) {
+        console.warn('Network error - using local fallback conversation state');
+      } else if (error.statusCode === 503 || error.statusCode === 502) {
+        console.warn('Service unavailable - using local fallback conversation state');
+      } else {
+        // For other errors, still use fallback but log the error
+        console.error('Unexpected error starting conversation:', error);
+      }
+      
       // Fallback: create local conversation state
       const fallbackState: ConversationState = {
         conversationId: `conv_${userId}_${Date.now()}`,
@@ -143,15 +154,22 @@ class VoiceService {
     } catch (error: any) {
       console.error('Failed to process voice input:', error);
       
-      // Check if it's a network error (backend unavailable)
-      if (!error.response) {
-        throw new Error('Unable to connect to voice service. Please check your connection and try again.');
-      }
+      // Provide user-friendly error messages based on error type
+      let errorMessage = 'Failed to process voice command. Please try again.';
       
-      // Provide user-friendly error message
-      const errorMessage = error.response?.data?.message || 
-                          error.message || 
-                          'Failed to process voice command. Please try again.';
+      if (error.code === 'NETWORK_ERROR' || !error.response) {
+        errorMessage = 'Unable to connect to voice service. Please check your connection and try again.';
+      } else if (error.statusCode === 429) {
+        errorMessage = 'Too many requests. Please wait a moment and try again.';
+      } else if (error.statusCode === 503 || error.statusCode === 502) {
+        errorMessage = 'Voice service is temporarily unavailable. Please try again later.';
+      } else if (error.statusCode === 401) {
+        errorMessage = 'Authentication required. Please log in and try again.';
+      } else if (error.response?.data?.error?.message) {
+        errorMessage = error.response.data.error.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
 
       throw new Error(errorMessage);
     }
@@ -166,8 +184,13 @@ class VoiceService {
         params: { limit },
       });
       return response.data || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to get conversation history:', error);
+      // Return empty array on error - non-critical operation
+      // Log error but don't throw to prevent breaking the UI
+      if (error.code !== 'NETWORK_ERROR') {
+        console.warn('Non-network error fetching conversation history:', error);
+      }
       return [];
     }
   }
@@ -183,8 +206,10 @@ class VoiceService {
           data: { userId },
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to end conversation:', error);
+      // Continue to cleanup even if API call fails
+      // This is a cleanup operation, so we don't want to throw
     } finally {
       this.conversationStates.delete(userId);
     }

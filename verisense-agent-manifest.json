@@ -21,6 +21,9 @@
   ],
   "tags": ["personal-shopper", "makeup", "returns-prevention", "voice-agent", "fashion", "human-in-the-loop"],
   "capabilities": {
+    "a2a": true,
+    "miniapp": true,
+    "mcp": true,
     "human_in_the_loop": true,
     "approval_workflows": true,
     "audit_trail": true

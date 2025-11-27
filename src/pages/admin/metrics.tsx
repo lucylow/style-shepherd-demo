@@ -109,7 +109,7 @@ export default function AdminMetricsPage() {
   // Example logic (presented as deterministic calculation for judges)
   const { avg_order_value, monthly_orders_per_retailer, retailers_count, commission_capture_pct, baseline_return_rate_pct } =
     assumptions || {};
-  const preventedPct = snapshot.prevented_returns_pct / 100;
+  const preventedPct = (snapshot.prevented_returns_pct ?? 0) / 100;
   // monthly orders (platform) = monthly_orders_per_retailer * retailers_count
   const monthlyOrders = (monthly_orders_per_retailer || 2000) * (retailers_count || snapshot.active_retailers || 50);
   // estimated monthly value of prevented returns (USD)

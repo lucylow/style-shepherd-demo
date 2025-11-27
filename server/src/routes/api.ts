@@ -1502,11 +1502,7 @@ router.post(
 
       return res.status(200).json(response);
     } catch (err: any) {
-      console.error('RAG query error', err);
-      return res.status(500).json({
-        error: 'rag_query_failed',
-        details: String(err?.message || err),
-      });
+      next(err);
     }
   }
 );
@@ -1584,11 +1580,7 @@ router.post(
       const response = await ragAgent.query(req.body);
       res.json(response);
     } catch (error: any) {
-      console.error('RAG agent query error:', error);
-      res.status(500).json({
-        error: 'rag_agent_query_failed',
-        details: error?.message || String(error),
-      });
+      next(error);
     }
   }
 );
@@ -1611,11 +1603,7 @@ router.post(
       await ragAgent.indexDocument(req.body);
       res.json({ success: true, message: 'Document indexed successfully' });
     } catch (error: any) {
-      console.error('RAG agent index error:', error);
-      res.status(500).json({
-        error: 'rag_agent_index_failed',
-        details: error?.message || String(error),
-      });
+      next(error);
     }
   }
 );
@@ -1645,11 +1633,7 @@ router.post(
         message: `Indexed ${req.body.documents.length} documents successfully` 
       });
     } catch (error: any) {
-      console.error('RAG agent batch index error:', error);
-      res.status(500).json({
-        error: 'rag_agent_batch_index_failed',
-        details: error?.message || String(error),
-      });
+      next(error);
     }
   }
 );
@@ -1663,11 +1647,7 @@ router.get(
       const stats = await ragAgent.getIndexStats();
       res.json(stats);
     } catch (error: any) {
-      console.error('RAG agent stats error:', error);
-      res.status(500).json({
-        error: 'rag_agent_stats_failed',
-        details: error?.message || String(error),
-      });
+      next(error);
     }
   }
 );
@@ -1681,11 +1661,7 @@ router.delete(
       await ragAgent.clearIndex();
       res.json({ success: true, message: 'Index cleared successfully' });
     } catch (error: any) {
-      console.error('RAG agent clear error:', error);
-      res.status(500).json({
-        error: 'rag_agent_clear_failed',
-        details: error?.message || String(error),
-      });
+      next(error);
     }
   }
 );
@@ -1702,11 +1678,7 @@ router.post(
         message: 'RAG agent initialized with sample documents' 
       });
     } catch (error: any) {
-      console.error('RAG agent init error:', error);
-      res.status(500).json({
-        error: 'rag_agent_init_failed',
-        details: error?.message || String(error),
-      });
+      next(error);
     }
   }
 );

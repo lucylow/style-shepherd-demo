@@ -162,24 +162,58 @@ const server = app.listen(PORT, () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully...');
+const gracefulShutdown = async (signal: string) => {
+  console.log(`${signal} received, shutting down gracefully...`);
+  
+  // Stop accepting new connections
   server.close(async () => {
-    await vultrPostgres.close();
-    await vultrValkey.close();
-    console.log('Server closed');
-    process.exit(0);
+    console.log('HTTP server closed');
+    
+    try {
+      // Close database connections with timeout
+      const shutdownTimeout = setTimeout(() => {
+        console.error('Shutdown timeout exceeded, forcing exit');
+        process.exit(1);
+      }, 10000); // 10 second timeout
+
+      await Promise.all([
+        vultrPostgres.close().catch((err) => {
+          console.error('Error closing PostgreSQL connection:', err);
+        }),
+        vultrValkey.close().catch((err) => {
+          console.error('Error closing Valkey connection:', err);
+        }),
+      ]);
+
+      clearTimeout(shutdownTimeout);
+      console.log('All connections closed successfully');
+      process.exit(0);
+    } catch (error) {
+      console.error('Error during graceful shutdown:', error);
+      process.exit(1);
+    }
   });
+
+  // Force shutdown after 15 seconds if graceful shutdown fails
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 15000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error: Error) => {
+  console.error('Uncaught Exception:', error);
+  gracefulShutdown('uncaughtException');
 });
 
-process.on('SIGINT', async () => {
-  console.log('SIGINT received, shutting down gracefully...');
-  server.close(async () => {
-    await vultrPostgres.close();
-    await vultrValkey.close();
-    console.log('Server closed');
-    process.exit(0);
-  });
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  gracefulShutdown('unhandledRejection');
 });
 
 export default app;

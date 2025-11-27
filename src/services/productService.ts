@@ -56,20 +56,39 @@ class ProductService {
       if (filters.query) {
         const query = filters.query.toLowerCase();
         products = products.filter(p => 
-          p.name.toLowerCase().includes(query) ||
-          p.brand.toLowerCase().includes(query) ||
-          p.category.toLowerCase().includes(query) ||
-          p.description?.toLowerCase().includes(query)
+          (p.name?.toLowerCase().includes(query)) ||
+          (p.brand?.toLowerCase().includes(query)) ||
+          (p.category?.toLowerCase().includes(query)) ||
+          (p.description?.toLowerCase().includes(query))
         );
       }
 
       this.useMockFallback = false;
       return products;
     } catch (error: any) {
-      console.error('[ProductService] API error, falling back to mocks:', error);
+      // Log error with context
+      const errorMessage = error?.message || 'Unknown error';
+      const errorCode = error?.code || 'UNKNOWN';
+      const statusCode = error?.statusCode || error?.response?.status;
+      
+      console.error('[ProductService] API error, falling back to mocks:', {
+        error: errorMessage,
+        code: errorCode,
+        status: statusCode,
+        filters,
+      });
+      
+      // Only use mock fallback for network errors or server errors
+      // Don't fallback for client errors (4xx) as they indicate a real problem
+      if (statusCode && statusCode >= 400 && statusCode < 500) {
+        // For client errors, throw to let the caller handle it
+        throw error;
+      }
+      
       this.useMockFallback = true;
       
-      // Fallback to mock service
+      // Fallback to mock service for network/server errors
+      console.warn('[ProductService] Using mock data as fallback');
       return mockProductService.searchProducts(filters);
     }
   }

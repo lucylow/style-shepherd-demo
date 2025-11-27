@@ -10,6 +10,7 @@ import sensespaceRoutes from './sensespace.js';
 import env from '../config/env.js';
 import { z } from 'zod';
 import { validateBody, validateQuery } from '../middleware/validation.js';
+import { ValidationError } from '../lib/errors.js';
 
 const router = Router();
 
@@ -38,9 +39,9 @@ router.post(
 
       // Validate required fields
       if (!event) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing event type',
+        throw new ValidationError('Missing event type', {
+          field: 'event',
+          reason: 'Event type is required for webhook processing',
         });
       }
 
@@ -127,11 +128,14 @@ router.get(
       // Handle OAuth errors
       if (error) {
         console.error('OAuth callback error:', error, error_description);
-        return res.status(400).json({
-          success: false,
-          error,
-          error_description,
-        });
+        throw new ValidationError(
+          error_description || 'OAuth authentication failed',
+          {
+            field: 'oauth_error',
+            value: error,
+            reason: error_description,
+          }
+        );
       }
 
       // Handle successful OAuth callback
@@ -159,9 +163,9 @@ router.get(
       }
 
       // No code or error - invalid request
-      return res.status(400).json({
-        success: false,
-        error: 'Missing authorization code',
+      throw new ValidationError('Missing authorization code', {
+        field: 'code',
+        reason: 'Authorization code is required for OAuth callback',
       });
     } catch (error) {
       next(error);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Grid3X3, ShoppingBag, Sparkles, Home, Heart, GitCompare } from 'lucide-react';
+import { Search, Filter, Grid3X3, ShoppingBag, Sparkles, Home, Heart, GitCompare, Bot } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ProductCard } from '@/components/ProductCard';
 import { VoiceInterface } from '@/components/VoiceInterface';
@@ -48,6 +48,98 @@ const Dashboard = () => {
   const { user } = useAuth();
   const userId = user?.id || 'guest';
   const { requestApproval } = useAgentAction();
+
+  const applyFiltersToProducts = useCallback((productsToFilter: Product[]) => {
+    let filtered = [...productsToFilter];
+
+    // Apply category filter
+    if (filters.categories.length > 0) {
+      filtered = filtered.filter(p => filters.categories.includes(p.category));
+    }
+
+    // Apply brand filter
+    if (filters.brands.length > 0) {
+      filtered = filtered.filter(p => filters.brands.includes(p.brand));
+    }
+
+    // Apply size filter
+    if (filters.sizes.length > 0) {
+      filtered = filtered.filter(p => 
+        p.sizes && Array.isArray(p.sizes) && p.sizes.some(size => filters.sizes.includes(size))
+      );
+    }
+
+    // Apply price filter
+    filtered = filtered.filter(p => 
+      p.price >= filters.minPrice && p.price <= filters.maxPrice
+    );
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (filters.sortBy) {
+        case 'price-asc':
+          return a.price - b.price;
+        case 'price-desc':
+          return b.price - a.price;
+        case 'rating':
+          return (b.rating || 0) - (a.rating || 0);
+        case 'return-risk': {
+          const aRisk = a.returnRisk || (a.returnRiskScore ? a.returnRiskScore / 100 : 0);
+          const bRisk = b.returnRisk || (b.returnRiskScore ? b.returnRiskScore / 100 : 0);
+          return aRisk - bRisk;
+        }
+        default:
+          return 0;
+      }
+    });
+
+    setProducts(filtered);
+  }, [filters]);
+
+  const searchProducts = useCallback(async () => {
+    try {
+      const results = await mockProductService.searchProducts({ query: searchQuery });
+      applyFiltersToProducts(results);
+      
+      // Save to recent searches
+      if (searchQuery.trim() && !recentSearches.includes(searchQuery.trim())) {
+        const updated = [searchQuery.trim(), ...recentSearches].slice(0, 10);
+        setRecentSearches(updated);
+        localStorage.setItem(`recent_searches_${userId}`, JSON.stringify(updated));
+      }
+    } catch (error) {
+      console.error('Error searching products:', error);
+    }
+  }, [searchQuery, recentSearches, userId, applyFiltersToProducts]);
+
+  const handleAddToCart = useCallback(async (product: Product) => {
+    if (userId === 'guest') {
+      // For guest users, just update state locally
+      setCartItems(prev => {
+        const existingItem = prev.find(item => item.product.id === product.id);
+        if (existingItem) {
+          return prev.map(item =>
+            item.product.id === product.id
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
+          );
+        }
+        return [...prev, { 
+          product, 
+          quantity: 1, 
+          size: product.recommendedSize || (product.sizes && product.sizes.length > 0 ? product.sizes[0] : undefined)
+        }];
+      });
+    } else {
+      // For logged-in users, use the mock service
+      const updatedCart = await mockCartService.addToCart(userId, {
+        product,
+        quantity: 1,
+        size: product.recommendedSize || (product.sizes && product.sizes.length > 0 ? product.sizes[0] : undefined)
+      });
+      setCartItems(updatedCart);
+    }
+  }, [userId]);
 
   useEffect(() => {
     loadInitialData();
@@ -103,69 +195,6 @@ const Dashboard = () => {
     }
   };
 
-  const applyFiltersToProducts = useCallback((productsToFilter: Product[]) => {
-    let filtered = [...productsToFilter];
-
-    // Apply category filter
-    if (filters.categories.length > 0) {
-      filtered = filtered.filter(p => filters.categories.includes(p.category));
-    }
-
-    // Apply brand filter
-    if (filters.brands.length > 0) {
-      filtered = filtered.filter(p => filters.brands.includes(p.brand));
-    }
-
-    // Apply size filter
-    if (filters.sizes.length > 0) {
-      filtered = filtered.filter(p => 
-        p.sizes.some(size => filters.sizes.includes(size))
-      );
-    }
-
-    // Apply price filter
-    filtered = filtered.filter(p => 
-      p.price >= filters.minPrice && p.price <= filters.maxPrice
-    );
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (filters.sortBy) {
-        case 'price-asc':
-          return a.price - b.price;
-        case 'price-desc':
-          return b.price - a.price;
-        case 'rating':
-          return (b.rating || 0) - (a.rating || 0);
-        case 'return-risk': {
-          const aRisk = a.returnRisk || (a.returnRiskScore ? a.returnRiskScore / 100 : 0);
-          const bRisk = b.returnRisk || (b.returnRiskScore ? b.returnRiskScore / 100 : 0);
-          return aRisk - bRisk;
-        }
-        default:
-          return 0;
-      }
-    });
-
-    setProducts(filtered);
-  }, [filters]);
-
-  const searchProducts = useCallback(async () => {
-    try {
-      const results = await mockProductService.searchProducts({ query: searchQuery });
-      applyFiltersToProducts(results);
-      
-      // Save to recent searches
-      if (searchQuery.trim() && !recentSearches.includes(searchQuery.trim())) {
-        const updated = [searchQuery.trim(), ...recentSearches].slice(0, 10);
-        setRecentSearches(updated);
-        localStorage.setItem(`recent_searches_${userId}`, JSON.stringify(updated));
-      }
-    } catch (error) {
-      console.error('Error searching products:', error);
-    }
-  }, [searchQuery, recentSearches, userId, applyFiltersToProducts]);
-
   const handleVoiceCommand = useCallback(async (response: VoiceResponse) => {
     // Check if voice command suggests adding products to cart
     if (response.products && response.products.length > 0) {
@@ -202,35 +231,6 @@ const Dashboard = () => {
     }
   }, [requestApproval, handleAddToCart]);
 
-  const handleAddToCart = useCallback(async (product: Product) => {
-    if (userId === 'guest') {
-      // For guest users, just update state locally
-      setCartItems(prev => {
-        const existingItem = prev.find(item => item.product.id === product.id);
-        if (existingItem) {
-          return prev.map(item =>
-            item.product.id === product.id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          );
-        }
-        return [...prev, { 
-          product, 
-          quantity: 1, 
-          size: product.recommendedSize || product.sizes[0] 
-        }];
-      });
-    } else {
-      // For logged-in users, use the mock service
-      const updatedCart = await mockCartService.addToCart(userId, {
-        product,
-        quantity: 1,
-        size: product.recommendedSize || product.sizes[0]
-      });
-      setCartItems(updatedCart);
-    }
-  }, [userId]);
-
   const handleUpdateQuantity = useCallback(async (productId: string, quantity: number) => {
     if (userId === 'guest') {
       if (quantity === 0) {
@@ -241,10 +241,17 @@ const Dashboard = () => {
         ));
       }
     } else {
-      const updatedCart = await mockCartService.updateQuantity(userId, productId, quantity);
+      // Find the cart item to get its size
+      const cartItem = cartItems.find(item => item.product.id === productId);
+      if (!cartItem) {
+        console.error('Cart item not found for product:', productId);
+        return;
+      }
+      const size = cartItem.size || cartItem.selectedSize || (cartItem.product.sizes && cartItem.product.sizes.length > 0 ? cartItem.product.sizes[0] : undefined);
+      const updatedCart = await mockCartService.updateQuantity(userId, productId, size, quantity);
       setCartItems(updatedCart);
     }
-  }, [userId]);
+  }, [userId, cartItems]);
 
   const handleRemoveItem = useCallback(async (productId: string) => {
     if (userId === 'guest') {
