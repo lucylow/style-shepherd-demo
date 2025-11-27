@@ -613,7 +613,7 @@ router.post(
       }
     }
   }
-);;
+);
 
 // Text-to-Speech endpoint with fallback chain
 router.post(

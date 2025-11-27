@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Sparkles, Palette } from 'lucide-react';
 import type { UserProfileData } from '@/components/UserProfile';
+import { SenseSpaceContentRenderer } from '@/components/sensespace';
 
 export default function VerisenseDemoPage() {
   const [selectedProfile, setSelectedProfile] = useState<UserProfileData | null>(null);
@@ -123,7 +124,7 @@ export default function VerisenseDemoPage() {
               <CardContent>
                 <div className="min-h-[120px] p-4 bg-muted rounded-lg">
                   {agentOutput ? (
-                    <p className="text-foreground whitespace-pre-wrap">{agentOutput}</p>
+                    <SenseSpaceContentRenderer content={agentOutput} />
                   ) : (
                     <p className="text-muted-foreground italic">
                       Agent responses will show here. Use the buttons above to interact with the

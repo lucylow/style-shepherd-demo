@@ -7,6 +7,7 @@ import { VoiceResponse } from '@/types/fashion';
 import { voiceService } from '@/services/voiceService';
 import { cn } from '@/lib/utils';
 import { useAgentAction } from '@/contexts/AgentActionContext';
+import { SenseSpaceContentRenderer } from './sensespace';
 
 interface VoiceInterfaceProps {
   onVoiceCommand?: (response: VoiceResponse) => void;
@@ -599,9 +600,36 @@ export const VoiceInterface = ({ onVoiceCommand, userId, className }: VoiceInter
                         ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'bg-muted text-foreground border border-border/50'
                     )}>
-                      <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                        {message.content}
-                      </div>
+                      {message.type === 'assistant' ? (
+                        <SenseSpaceContentRenderer
+                          content={message.content}
+                          className="text-sm"
+                          onMiniAppOpen={(id, url) => {
+                            window.open(url, '_blank', 'noopener,noreferrer');
+                            toast({
+                              title: 'Opening MiniApp',
+                              description: `Opening ${id}...`,
+                            });
+                          }}
+                          onPaymentConfirm={async (intentId) => {
+                            // Send payment confirmation message to agent
+                            const paymentMessage = `Payment confirmed for intent: ${intentId}`;
+                            setMessages(prev => [...prev, {
+                              type: 'user',
+                              content: paymentMessage,
+                              timestamp: Date.now(),
+                            }]);
+                            toast({
+                              title: 'Payment Confirmed',
+                              description: `Payment intent ${intentId} has been confirmed.`,
+                            });
+                          }}
+                        />
+                      ) : (
+                        <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                          {message.content}
+                        </div>
+                      )}
                       {message.audioUrl && message.type === 'assistant' && (
                         <Button
                           variant="ghost"

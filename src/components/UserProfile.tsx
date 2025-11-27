@@ -1,101 +1,46 @@
 /**
  * UserProfile Component
  * Displays user profile using SenseSpace SDK with graceful loading/error UI
+ * Supports both hook-based and manual fetching approaches
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, RefreshCw, User, Sparkles, Palette } from 'lucide-react';
-import api from '@/lib/api';
+import { useUserProfile } from '@/hooks/useSenseSpaceUserProfile';
+import { getUserIdFromUrl } from '@/lib/sensespace/client';
 
 export interface UserProfileProps {
   userId: string;
   onUseProfile?: (profile: UserProfileData, action?: 'personal-shopper' | 'makeup-artist') => void;
 }
 
-export interface UserProfileData {
-  id: string;
-  username?: string;
-  email?: string;
-  avatar?: string;
-  bio?: string;
-  created_at?: string;
-  preferences?: Record<string, any>;
-  demo?: boolean;
-  _cached?: boolean;
-}
+// Re-export UserProfileData type for compatibility
+export type { UserProfileData } from '@/lib/sensespace/client';
 
 export default function UserProfile({ userId, onUseProfile }: UserProfileProps) {
-  const [token, setToken] = useState<string | null>(null);
-  const [profile, setProfile] = useState<UserProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  // Use userId prop, or try to extract from URL (for MiniApp integration)
+  const effectiveUserId = userId || getUserIdFromUrl() || 'user123';
+  
+  // Use the new React Hook for cleaner code
+  const { data: profile, loading, error: errorMessage, refetch } = useUserProfile(effectiveUserId, {
+    enabled: true,
+    timeout: 10000,
+  });
 
-  // Fetch token from server
-  useEffect(() => {
-    async function fetchToken() {
-      try {
-        const { data } = await api.get('/sensespace/token');
-        setToken(data.token);
-      } catch (err: any) {
-        console.error('Failed to fetch token:', err);
-        setError('Failed to initialize profile client. Using fallback mode.');
-        // Still allow profile fetch to proceed with fallback
-        setToken('demo-token');
-      }
+  // Call onUseProfile when profile loads (for demo page)
+  React.useEffect(() => {
+    if (profile && onUseProfile) {
+      onUseProfile(profile);
     }
-    fetchToken();
-  }, []);
+  }, [profile, onUseProfile]);
 
-  // Fetch profile data
-  const fetchProfile = useCallback(async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    setError(null);
-
-    try {
-      // Use server proxy endpoint which handles caching and fallbacks
-      const { data } = await api.get(`/sensespace/profile/${userId}`);
-      setProfile(data);
-      // Automatically call onUseProfile when profile loads (for demo page)
-      if (onUseProfile && data) {
-        onUseProfile(data);
-      }
-    } catch (err: any) {
-      console.error('Failed to fetch profile:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to fetch user profile');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [userId, onUseProfile]);
-
-  useEffect(() => {
-    if (token !== null) {
-      fetchProfile();
-    }
-  }, [token, userId, fetchProfile]);
-
-  // Initializing state
-  if (token === null && !error) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center p-8">
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Initializing profile client...</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleRefresh = async () => {
+    await refetch();
+  };
 
   // Loading state
   if (loading && !profile) {
@@ -112,7 +57,7 @@ export default function UserProfile({ userId, onUseProfile }: UserProfileProps) 
   }
 
   // Error state
-  if (error && !profile) {
+  if (errorMessage && !profile) {
     return (
       <Card>
         <CardHeader>
@@ -120,9 +65,9 @@ export default function UserProfile({ userId, onUseProfile }: UserProfileProps) 
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{errorMessage}</AlertDescription>
           </Alert>
-          <Button onClick={() => fetchProfile()} className="mt-4">
+          <Button onClick={handleRefresh} className="mt-4">
             Try Again
           </Button>
         </CardContent>
@@ -172,10 +117,10 @@ export default function UserProfile({ userId, onUseProfile }: UserProfileProps) 
             <Button
               variant="outline"
               size="sm"
-              onClick={() => fetchProfile(true)}
-              disabled={refreshing}
+              onClick={handleRefresh}
+              disabled={loading}
             >
-              {refreshing ? (
+              {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4" />
@@ -184,9 +129,9 @@ export default function UserProfile({ userId, onUseProfile }: UserProfileProps) 
             </Button>
           </div>
         </div>
-        {error && (
+        {errorMessage && (
           <Alert variant="destructive" className="mt-4">
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{errorMessage}</AlertDescription>
           </Alert>
         )}
       </CardHeader>

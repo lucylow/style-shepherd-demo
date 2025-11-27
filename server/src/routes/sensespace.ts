@@ -119,61 +119,113 @@ router.get(
         }
       }
       
-      // Call real SenseSpace API
-      try {
-        const endpoint = env.SENSESPACE_API_ENDPOINT || 'https://api.sensespace.xyz';
-        const url = `${endpoint}/api/miniapps-user/profile/${id}`;
-        
-        const response = await fetch(url, {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          method: 'GET',
-        });
-        
-        if (!response.ok) {
-          const text = await response.text();
-          return res.status(response.status).json({ 
-            error: text || 'Failed to fetch profile from SenseSpace',
-            status: response.status
-          });
-        }
-        
-        const json = await response.json();
-        
-        // Cache the result
-        profileCache.set(cacheKey, json);
-        
-        return res.status(200).json(json);
-      } catch (fetchError: any) {
-        console.error('SenseSpace API fetch error:', fetchError);
-        
-        // Fallback to mock on error
+      // Call real SenseSpace API with retry logic
+      const endpoint = env.SENSESPACE_API_ENDPOINT || 'https://api.sensespace.xyz';
+      const url = `${endpoint}/api/miniapps-user/profile/${id}`;
+      
+      const maxRetries = 3;
+      let lastError: any = null;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          const mockPath = join(
-            __dirname, 
-            '..', 
-            '..', 
-            '..', 
-            'mocks', 
-            'sensespace', 
-            'demo_profile.json'
-          );
-          const mockData = await readFile(mockPath, 'utf-8');
-          const mock = JSON.parse(mockData);
+          const response = await fetch(url, {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            method: 'GET',
+            // Add timeout to prevent hanging requests
+            signal: AbortSignal.timeout(10000), // 10 second timeout
+          });
           
-          return res.status(200).json({ 
-            ...mock, 
-            demo: true,
-            error: 'SenseSpace API unavailable, using mock data'
+          if (!response.ok) {
+            // Don't retry on 4xx errors (client errors)
+            if (response.status >= 400 && response.status < 500) {
+              const text = await response.text();
+              return res.status(response.status).json({ 
+                error: text || 'Failed to fetch profile from SenseSpace',
+                status: response.status,
+                success: false
+              });
+            }
+            
+            // Retry on 5xx errors (server errors)
+            if (attempt < maxRetries) {
+              const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Exponential backoff, max 5s
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
+            
+            const text = await response.text();
+            return res.status(response.status).json({ 
+              error: text || 'Failed to fetch profile from SenseSpace',
+              status: response.status,
+              success: false
+            });
+          }
+          
+          const json = await response.json();
+          
+          // Validate response structure
+          if (!json || typeof json !== 'object') {
+            throw new Error('Invalid response format from SenseSpace API');
+          }
+          
+          // Cache the result
+          profileCache.set(cacheKey, json);
+          
+          return res.status(200).json({
+            ...json,
+            success: true
           });
-        } catch {
-          return res.status(500).json({ 
-            error: 'sensespace_fetch_failed',
-            message: fetchError.message 
-          });
+        } catch (fetchError: any) {
+          lastError = fetchError;
+          
+          // Don't retry on abort/timeout if it's the last attempt
+          if (fetchError.name === 'AbortError' && attempt < maxRetries) {
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+          
+          // If not the last attempt, retry
+          if (attempt < maxRetries) {
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+            console.warn(`SenseSpace API fetch attempt ${attempt} failed, retrying in ${delay}ms...`, fetchError.message);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
         }
+      }
+      
+      // All retries failed, fallback to mock
+      console.error('SenseSpace API fetch failed after all retries:', lastError);
+      
+      try {
+        const mockPath = join(
+          __dirname, 
+          '..', 
+          '..', 
+          '..', 
+          'mocks', 
+          'sensespace', 
+          'demo_profile.json'
+        );
+        const mockData = await readFile(mockPath, 'utf-8');
+        const mock = JSON.parse(mockData);
+        
+        return res.status(200).json({ 
+          ...mock, 
+          demo: true,
+          success: true,
+          warning: 'SenseSpace API unavailable, using mock data'
+        });
+      } catch {
+        return res.status(500).json({ 
+          error: 'sensespace_fetch_failed',
+          message: lastError?.message || 'Failed to fetch profile',
+          success: false
+        });
       }
     } catch (error) {
       next(error);
