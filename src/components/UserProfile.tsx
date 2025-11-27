@@ -3,7 +3,7 @@
  * Displays user profile using SenseSpace SDK with graceful loading/error UI
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -52,7 +52,7 @@ export default function UserProfile({ userId, onUseProfile }: UserProfileProps) 
   }, []);
 
   // Fetch profile data
-  const fetchProfile = async (isRefresh = false) => {
+  const fetchProfile = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
       setRefreshing(true);
     } else {
@@ -75,13 +75,13 @@ export default function UserProfile({ userId, onUseProfile }: UserProfileProps) 
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [userId, onUseProfile]);
 
   useEffect(() => {
     if (token !== null) {
       fetchProfile();
     }
-  }, [token, userId]);
+  }, [token, userId, fetchProfile]);
 
   // Initializing state
   if (token === null && !error) {

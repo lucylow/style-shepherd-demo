@@ -8,6 +8,7 @@ let createSenseSpaceClient: any = null;
 
 try {
   // Dynamic import to handle cases where SDK might not be installed
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const sdk = require('@verisense-network/sensespace-miniapp-sdk');
   createSenseSpaceClient = sdk.createSenseSpaceClient || sdk.default?.createSenseSpaceClient;
 } catch (error) {

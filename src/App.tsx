@@ -44,6 +44,7 @@ import LovableEnvironment from "./pages/LovableEnvironment";
 import LovableLogs from "./pages/LovableLogs";
 import LovableHealth from "./pages/LovableHealth";
 import AdminMetrics from "./pages/admin/metrics";
+import Agents from "./pages/Agents";
 import PageTransition from "./components/PageTransition";
 import RouteLoadingIndicator from "./components/RouteLoadingIndicator";
 
@@ -119,6 +120,8 @@ const AppRoutes = () => {
         <Route path="/verisense-demo" element={<PageTransition keyProp={location.pathname}><VerisenseDemoPage /></PageTransition>} />
         {/* Admin Routes */}
         <Route path="/admin/metrics" element={<PageTransition keyProp={location.pathname}><AdminMetrics /></PageTransition>} />
+        {/* AI Agents Route */}
+        <Route path="/agents" element={<PageTransition keyProp={location.pathname}><Agents /></PageTransition>} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<PageTransition keyProp={location.pathname}><NotFound /></PageTransition>} />
       </Routes>

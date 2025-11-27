@@ -94,7 +94,7 @@ export const VoiceInterface = ({ onVoiceCommand, userId, className }: VoiceInter
         audioPlayerRef.current = null;
       }
     };
-  }, []);
+  }, [isListening, messages]);
 
   // Audio level visualization
   const startAudioVisualization = useCallback((stream: MediaStream) => {
