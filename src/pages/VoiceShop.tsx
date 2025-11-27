@@ -7,6 +7,7 @@ import { ShoppingCart } from '@/components/ShoppingCart';
 import { Button } from '@/components/ui/button';
 import { CartItem, Product, VoiceResponse } from '@/types/fashion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAgentAction } from '@/contexts/AgentActionContext';
 import { mockProductService } from '@/services/mockProducts';
 import { mockCartService } from '@/services/mockCart';
 import Breadcrumbs from '@/components/Breadcrumbs';
@@ -25,6 +26,7 @@ const VoiceShop = () => {
 
   const { user } = useAuth();
   const userId = user?.id || 'guest';
+  const { requestApproval } = useAgentAction();
 
   useScrollRestoration();
 
@@ -62,7 +64,32 @@ const VoiceShop = () => {
 
     // If products are directly provided in response
     if (response.products && response.products.length > 0) {
-      setProducts(response.products);
+      const text = response.text?.toLowerCase() || '';
+      const wantsToAdd = text.includes('add') || text.includes('cart') || text.includes('buy');
+      
+      if (wantsToAdd) {
+        // Request approval before adding to cart
+        const approved = await requestApproval({
+          type: 'add_to_cart',
+          title: 'Add products to cart?',
+          description: `The AI wants to add ${response.products.length} product(s) to your cart based on your voice command.`,
+          products: response.products,
+          metadata: {
+            confidence: response.confidence,
+            reasoning: `Based on your voice command: "${response.text}"`,
+          },
+        });
+
+        if (approved) {
+          // Add all products to cart
+          for (const product of response.products) {
+            await handleAddToCart(product);
+          }
+        }
+      } else {
+        // Just show products
+        setProducts(response.products);
+      }
     } else if (response.text) {
       // Try to search based on voice command text and intent
       try {

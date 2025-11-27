@@ -4,6 +4,7 @@ import { Mic, PlayCircle, Sparkles, Bot, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
+import { SenseSpaceContentRenderer } from "./sensespace";
 
 const Hero = () => {
   const [stats, setStats] = useState({ returns: 0, timeSaved: 0, rating: 0 });
@@ -194,7 +195,13 @@ const Hero = () => {
                             : "bg-gradient-to-br from-primary to-primary/90 text-white"
                         }`}
                       >
-                        <p className="text-sm leading-relaxed">{msg.text}</p>
+                        {msg.role === "assistant" ? (
+                          <div className="text-white [&_*]:text-white [&_code]:bg-white/20">
+                            <SenseSpaceContentRenderer content={msg.text} className="text-sm" />
+                          </div>
+                        ) : (
+                          <p className="text-sm leading-relaxed">{msg.text}</p>
+                        )}
                       </div>
                     </motion.div>
                   ))}

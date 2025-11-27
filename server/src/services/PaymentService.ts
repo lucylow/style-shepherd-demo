@@ -889,7 +889,7 @@ export class PaymentService {
       return {
         refundId: refund.id,
         amount: refund.amount / 100,
-        status: refund.status,
+        status: refund.status || 'succeeded',
       };
     } catch (error: any) {
       this.logPaymentOperation('createRefund', {

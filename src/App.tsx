@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthKitProvider } from "@workos-inc/authkit-react";
 import { WORKOS_CLIENT_ID, WORKOS_API_HOSTNAME } from "@/lib/workos";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AgentActionProvider } from "@/contexts/AgentActionContext";
+import { AgentActionConfirmationDialog } from "@/components/AgentActionConfirmationDialog";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
@@ -35,10 +37,15 @@ import LovableDashboard from "./pages/LovableDashboard";
 import LovableDeployment from "./pages/LovableDeployment";
 import LovableMonitoring from "./pages/LovableMonitoring";
 import LovableSettings from "./pages/LovableSettings";
+import ProfilePage from "./pages/Profile";
+import VerisenseDemoPage from "./pages/VerisenseDemo";
+import AgentPaymentDemo from "./pages/AgentPaymentDemo";
 import LovableAnalytics from "./pages/LovableAnalytics";
 import LovableEnvironment from "./pages/LovableEnvironment";
 import LovableLogs from "./pages/LovableLogs";
 import LovableHealth from "./pages/LovableHealth";
+import AdminMetrics from "./pages/admin/metrics";
+import Agents from "./pages/Agents";
 import PageTransition from "./components/PageTransition";
 import RouteLoadingIndicator from "./components/RouteLoadingIndicator";
 
@@ -108,6 +115,16 @@ const AppRoutes = () => {
         <Route path="/lovable/environment" element={<PageTransition keyProp={location.pathname}><LovableEnvironment /></PageTransition>} />
         <Route path="/lovable/logs" element={<PageTransition keyProp={location.pathname}><LovableLogs /></PageTransition>} />
         <Route path="/lovable/health" element={<PageTransition keyProp={location.pathname}><LovableHealth /></PageTransition>} />
+        {/* SenseSpace Profile Route */}
+        <Route path="/profile/:id" element={<PageTransition keyProp={location.pathname}><ProfilePage /></PageTransition>} />
+        {/* Verisense Demo Route */}
+        <Route path="/verisense-demo" element={<PageTransition keyProp={location.pathname}><VerisenseDemoPage /></PageTransition>} />
+        {/* Agent Payment Demo Route */}
+        <Route path="/agent-payment-demo" element={<PageTransition keyProp={location.pathname}><AgentPaymentDemo /></PageTransition>} />
+        {/* Admin Routes */}
+        <Route path="/admin/metrics" element={<PageTransition keyProp={location.pathname}><AdminMetrics /></PageTransition>} />
+        {/* AI Agents Route */}
+        <Route path="/agents" element={<PageTransition keyProp={location.pathname}><Agents /></PageTransition>} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<PageTransition keyProp={location.pathname}><NotFound /></PageTransition>} />
       </Routes>
@@ -122,13 +139,16 @@ const App = () => (
         clientId={WORKOS_CLIENT_ID}
         apiHostname={WORKOS_API_HOSTNAME}
       >
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </TooltipProvider>
+        <AgentActionProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+            <AgentActionConfirmationDialog />
+          </TooltipProvider>
+        </AgentActionProvider>
       </AuthKitProvider>
     </QueryClientProvider>
   </ErrorBoundary>

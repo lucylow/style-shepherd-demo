@@ -1,0 +1,36 @@
+[
+  {
+    "sku": "ord-1001",
+    "order_id": "ord-1001",
+    "user_id": "user123",
+    "product_id": "p-jeans-001",
+    "product_title": "Indigo Stretch Slim Jeans",
+    "brand": "DenimCo",
+    "order_value": 89.0,
+    "predicted_return_probability_before": 0.42,
+    "metadata": { "size": "M", "color": "indigo" }
+  },
+  {
+    "sku": "ord-1002",
+    "order_id": "ord-1002",
+    "user_id": "user124",
+    "product_id": "p-dress-002",
+    "product_title": "Pastel Linen Midi Dress",
+    "brand": "Sunrise Atelier",
+    "order_value": 129.0,
+    "predicted_return_probability_before": 0.33,
+    "metadata": { "size": "S", "color": "pastel" }
+  },
+  {
+    "sku": "ord-1003",
+    "order_id": "ord-1003",
+    "user_id": "user125",
+    "product_id": "p-jacket-003",
+    "product_title": "Tailored Wool Blazer",
+    "brand": "Maison Bleu",
+    "order_value": 210.0,
+    "predicted_return_probability_before": 0.28,
+    "metadata": { "size": "L", "color": "charcoal" }
+  }
+]
+

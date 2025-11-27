@@ -265,7 +265,7 @@ export class ReturnsPredictionEngine {
     features.time_of_day = orderData.timeOfDay || 12;
     features.day_of_week = orderData.dayOfWeek || 1;
     features.season_match = this.calculateSeasonMatch(productData);
-    features.occasion_match = input.orderContext?.occasion ? 0.7 : 0.5;
+    features.occasion_match = (input.orderContext as any)?.occasion ? 0.7 : 0.5;
     features.delivery_time_estimate = productData.deliveryTimeDays || 7;
     features.return_policy_flexibility = productData.returnPolicyFlexibility || 0.5;
     features.customer_service_rating = productData.customerServiceRating || 0.8;

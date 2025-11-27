@@ -132,6 +132,17 @@ CREATE TABLE IF NOT EXISTS webhook_events (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Audit Trail Table (for LLM recommendation reproducibility)
+CREATE TABLE IF NOT EXISTS audit_trail (
+  recommendation_id VARCHAR(255) PRIMARY KEY,
+  timestamp TIMESTAMP NOT NULL,
+  source_ids JSONB NOT NULL DEFAULT '[]',
+  model_prompt TEXT NOT NULL,
+  model_response JSONB NOT NULL,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
@@ -152,6 +163,8 @@ CREATE INDEX IF NOT EXISTS idx_invoices_order_id ON invoices(order_id);
 CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(order_id);
 CREATE INDEX IF NOT EXISTS idx_webhook_events_type ON webhook_events(type);
 CREATE INDEX IF NOT EXISTS idx_webhook_events_processed ON webhook_events(processed);
+CREATE INDEX IF NOT EXISTS idx_audit_trail_timestamp ON audit_trail(timestamp);
+CREATE INDEX IF NOT EXISTS idx_audit_trail_created_at ON audit_trail(created_at);
 
 -- Update timestamp trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

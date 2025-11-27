@@ -1,0 +1,283 @@
+#!/usr/bin/env node
+
+/**
+ * scripts/agent_poller.js
+ * 
+ * Demo autonomous poller: loads mocks/catalog.json, runs mockPredictAfter on each order,
+ * and if prevented_value > threshold, creates a demo invoice JSON and logs an action.
+ * 
+ * Usage:
+ *   node scripts/agent_poller.js
+ * 
+ * Environment variables:
+ *   PREVENTED_VALUE_THRESHOLD (default 20.0) - Minimum prevented value to trigger invoice
+ *   COMMISSION_RATE (default 0.15) - Commission rate (15%)
+ *   POLL_INTERVAL_SECONDS (optional, default: 0 -> single-run)
+ * 
+ * Example:
+ *   PREVENTED_VALUE_THRESHOLD=25.0 COMMISSION_RATE=0.15 node scripts/agent_poller.js
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { mockPredictAfter } = require('../services/returnsPredictor.cjs');
+
+const CATALOG_PATH = path.join(process.cwd(), 'mocks', 'catalog.json');
+const INVOICES_DIR = path.join(process.cwd(), 'invoices');
+const LOGS_DIR = path.join(process.cwd(), 'logs');
+
+/**
+ * Ensure directory exists, create if it doesn't
+ */
+function ensureDir(p) {
+  try {
+    if (!fs.existsSync(p)) {
+      fs.mkdirSync(p, { recursive: true });
+      console.log(`Created directory: ${p}`);
+    }
+  } catch (error) {
+    console.error(`Failed to create directory ${p}:`, error.message);
+    throw error;
+  }
+}
+
+// Ensure directories exist
+ensureDir(INVOICES_DIR);
+ensureDir(LOGS_DIR);
+
+const THRESHOLD = parseFloat(process.env.PREVENTED_VALUE_THRESHOLD || '20.0'); // currency units
+const COMMISSION_RATE = parseFloat(process.env.COMMISSION_RATE || '0.15'); // 15%
+const POLL_INTERVAL_SECONDS = parseInt(process.env.POLL_INTERVAL_SECONDS || '0', 10);
+
+// Validate configuration
+if (isNaN(THRESHOLD) || THRESHOLD < 0) {
+  console.error('Invalid PREVENTED_VALUE_THRESHOLD, using default 20.0');
+  THRESHOLD = 20.0;
+}
+if (isNaN(COMMISSION_RATE) || COMMISSION_RATE < 0 || COMMISSION_RATE > 1) {
+  console.error('Invalid COMMISSION_RATE, using default 0.15');
+  COMMISSION_RATE = 0.15;
+}
+
+/**
+ * Load catalog from JSON file
+ */
+function loadCatalog() {
+  try {
+    if (!fs.existsSync(CATALOG_PATH)) {
+      throw new Error(`Catalog not found at ${CATALOG_PATH}`);
+    }
+    const content = fs.readFileSync(CATALOG_PATH, 'utf8');
+    const catalog = JSON.parse(content);
+    
+    if (!Array.isArray(catalog)) {
+      throw new Error('Catalog must be an array of orders');
+    }
+    
+    return catalog;
+  } catch (error) {
+    console.error(`Failed to load catalog from ${CATALOG_PATH}:`, error.message);
+    process.exit(1);
+  }
+}
+
+/**
+ * Write invoice JSON file
+ */
+function writeInvoice(invoice) {
+  try {
+    const timestamp = Date.now();
+    const safeOrderId = (invoice.order_id || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '_');
+    const filename = `demo_invoice_${safeOrderId}_${timestamp}.json`;
+    const filePath = path.join(INVOICES_DIR, filename);
+    
+    const invoiceData = {
+      ...invoice,
+      invoice_id: invoice.invoice_id || `inv-${timestamp}`,
+      created_at: invoice.created_at || new Date().toISOString(),
+    };
+    
+    fs.writeFileSync(filePath, JSON.stringify(invoiceData, null, 2), 'utf8');
+    return filePath;
+  } catch (error) {
+    console.error(`Failed to write invoice:`, error.message);
+    throw error;
+  }
+}
+
+/**
+ * Append log entry to agent actions log
+ */
+function appendLog(entry) {
+  const logPath = path.join(LOGS_DIR, 'agent_actions.json');
+  let arr = [];
+  
+  try {
+    if (fs.existsSync(logPath)) {
+      const content = fs.readFileSync(logPath, 'utf8');
+      arr = JSON.parse(content);
+      if (!Array.isArray(arr)) {
+        arr = [];
+      }
+    }
+  } catch (error) {
+    console.warn(`Failed to read existing log file, starting fresh:`, error.message);
+    arr = [];
+  }
+  
+  try {
+    arr.push({
+      ...entry,
+      ts: entry.ts || new Date().toISOString(),
+    });
+    fs.writeFileSync(logPath, JSON.stringify(arr, null, 2), 'utf8');
+    return logPath;
+  } catch (error) {
+    console.error(`Failed to append log entry:`, error.message);
+    throw error;
+  }
+}
+
+/**
+ * Act on order by creating invoice if threshold passed
+ */
+function actOnOrder(pred, order) {
+  try {
+    // Create a demo invoice if threshold passed
+    const invoiceAmount = Math.round(pred.prevented_value * COMMISSION_RATE * 100) / 100;
+    const invoice = {
+      invoice_id: `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      retailer: order.brand || 'demo-retailer',
+      order_id: pred.order_id,
+      prevented_value: pred.prevented_value,
+      commission_rate: COMMISSION_RATE,
+      invoice_amount: invoiceAmount,
+      created_at: new Date().toISOString(),
+      evidence: {
+        predicted_before: pred.predicted_before,
+        predicted_after: pred.predicted_after,
+        prevented_probability: pred.prevented_probability,
+      },
+      order_details: {
+        product_id: order.product_id,
+        product_title: order.product_title,
+        order_value: order.order_value,
+      },
+      note: 'Demo invoice generated by Style Shepherd autonomous poller',
+    };
+    
+    const invoicePath = writeInvoice(invoice);
+    const logEntry = {
+      ts: new Date().toISOString(),
+      type: 'invoice_created',
+      invoice_path: invoicePath,
+      invoice_summary: {
+        invoice_id: invoice.invoice_id,
+        order_id: invoice.order_id,
+        prevented_value: invoice.prevented_value,
+        invoice_amount: invoice.invoice_amount,
+      },
+    };
+    
+    const logPath = appendLog(logEntry);
+    console.log(`✅ Created demo invoice: ${invoicePath}`);
+    console.log(`   Invoice ID: ${invoice.invoice_id}`);
+    console.log(`   Prevented value: $${invoice.prevented_value.toFixed(2)}`);
+    console.log(`   Invoice amount: $${invoice.invoice_amount.toFixed(2)}`);
+    console.log(`   Appended agent action to: ${logPath}`);
+    
+    return { invoice, invoicePath, logPath };
+  } catch (error) {
+    console.error(`Failed to act on order ${pred.order_id}:`, error.message);
+    throw error;
+  }
+}
+
+/**
+ * Run single poll cycle
+ */
+function runOnce() {
+  console.log('\n=== Starting Agent Poll Cycle ===');
+  console.log(`Threshold: $${THRESHOLD.toFixed(2)}`);
+  console.log(`Commission Rate: ${(COMMISSION_RATE * 100).toFixed(1)}%`);
+  console.log(`Timestamp: ${new Date().toISOString()}\n`);
+  
+  try {
+    const catalog = loadCatalog();
+    console.log(`Loaded ${catalog.length} orders from catalog.`);
+    
+    let actionsCount = 0;
+    let skippedCount = 0;
+    
+    catalog.forEach((order, index) => {
+      try {
+        console.log(`\n[${index + 1}/${catalog.length}] Processing order ${order.order_id}...`);
+        
+        const pred = mockPredictAfter(order);
+        console.log(`  Predicted before: ${(pred.predicted_before * 100).toFixed(1)}%`);
+        console.log(`  Predicted after:  ${(pred.predicted_after * 100).toFixed(1)}%`);
+        console.log(`  Prevented value:  $${pred.prevented_value.toFixed(2)}`);
+        
+        if (pred.prevented_value > THRESHOLD) {
+          console.log(`  ⚡ Prevented value $${pred.prevented_value.toFixed(2)} > threshold $${THRESHOLD.toFixed(2)}: ACTING`);
+          actOnOrder(pred, order);
+          actionsCount++;
+        } else {
+          console.log(`  ⏭️  Prevented value $${pred.prevented_value.toFixed(2)} <= threshold $${THRESHOLD.toFixed(2)}: SKIP`);
+          skippedCount++;
+        }
+      } catch (error) {
+        console.error(`  ❌ Error processing order ${order.order_id}:`, error.message);
+      }
+    });
+    
+    console.log(`\n=== Poll Cycle Complete ===`);
+    console.log(`Actions taken: ${actionsCount}`);
+    console.log(`Orders skipped: ${skippedCount}`);
+    console.log(`Total processed: ${catalog.length}\n`);
+  } catch (error) {
+    console.error('Poll cycle failed:', error.message);
+    process.exit(1);
+  }
+}
+
+/**
+ * Main function
+ */
+async function main() {
+  console.log('🤖 Style Shepherd Autonomous Agent Poller');
+  console.log('==========================================\n');
+  
+  runOnce();
+  
+  if (POLL_INTERVAL_SECONDS > 0) {
+    console.log(`Starting continuous poll every ${POLL_INTERVAL_SECONDS}s. Press CTRL-C to stop.\n`);
+    const intervalId = setInterval(() => {
+      runOnce();
+    }, POLL_INTERVAL_SECONDS * 1000);
+    
+    // Handle graceful shutdown
+    process.on('SIGINT', () => {
+      console.log('\n\nReceived SIGINT, shutting down gracefully...');
+      clearInterval(intervalId);
+      console.log('Poller stopped.');
+      process.exit(0);
+    });
+    
+    process.on('SIGTERM', () => {
+      console.log('\n\nReceived SIGTERM, shutting down gracefully...');
+      clearInterval(intervalId);
+      console.log('Poller stopped.');
+      process.exit(0);
+    });
+  } else {
+    console.log('Single-run poll completed.\n');
+  }
+}
+
+// Run main function
+main().catch((error) => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});
+

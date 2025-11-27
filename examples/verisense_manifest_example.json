@@ -1,0 +1,42 @@
+{
+  "id": "style-shepherd-00000000-0000-0000-0000-000000000000",
+  "name": "Style Shepherd (Demo)",
+  "version": "0.1.0",
+  "description": "Voice-first AI personal shopper, personal shopper + personal makeup artist, and returns-prevention assistant (demo manifest for Verisense).",
+  "author": "Lucy Low <low.lucyy@gmail.com>",
+  "capabilities": {
+    "a2a": true,
+    "miniapp": true,
+    "mcp": true
+  },
+  "entrypoint": "/verisense-demo",
+  "ui": {
+    "url": "https://your-deploy.example.com/verisense-demo",
+    "width": 360,
+    "height": 720
+  },
+  "scopes": [
+    "profile:read",
+    "catalog:read",
+    "transactions:write",
+    "memory:read",
+    "memory:write"
+  ],
+  "webhooks": [
+    {
+      "name": "order_update",
+      "url": "https://your-backend.example.com/webhooks/order"
+    }
+  ],
+  "metadata": {
+    "contact_email": "low.lucyy@gmail.com",
+    "repo": "https://github.com/lucylow/style-shepherd-demo",
+    "hackathon": "AI Champion Ship / Verisense"
+  },
+  "policies": {
+    "privacy": "https://your-app.example.com/privacy",
+    "terms": "https://your-app.example.com/terms"
+  },
+  "created_at": "2025-11-26T00:00:00Z"
+}
+
