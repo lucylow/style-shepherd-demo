@@ -15,6 +15,7 @@ import sensespaceRoutes from './routes/sensespace.js';
 import verisenseRoutes from './routes/verisense.js';
 import verisenseNucleusRoutes from './routes/verisense-nucleus.js';
 import agentRoutes from './routes/agent.js';
+import humanInTheLoopRoutes from './routes/human-in-the-loop.js';
 import agentPaymentRoutes from './routes/agent-payment.js';
 import { vultrPostgres } from './lib/vultr-postgres.js';
 import { vultrValkey } from './lib/vultr-valkey.js';
@@ -92,6 +93,7 @@ app.use('/api/verisense', verisenseRoutes); // Alias for /api/sensespace for com
 app.use('/api/verisense-nucleus', verisenseNucleusRoutes); // Verisense Nucleus capabilities
 app.use('/api/agent', agentRoutes);
 app.use('/api/agent-payment', agentPaymentRoutes); // Agent payment API routes
+app.use('/api/human-in-the-loop', humanInTheLoopRoutes); // Human-in-the-loop approval system
 app.use('/api', apiRoutes);
 
 // Root endpoint

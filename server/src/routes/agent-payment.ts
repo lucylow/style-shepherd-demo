@@ -46,8 +46,8 @@ function getAgentApiKey(req: any): string | null {
     return authHeader.substring(7);
   }
   
-  // Fall back to environment variable
-  return AGENT_API_KEY || null;
+  // Return null - will fall back to getDefaultAgentApiKey() in route handlers
+  return null;
 }
 
 /**
@@ -111,21 +111,23 @@ router.post('/intent', async (req, res) => {
       }),
     });
 
-    const data = await response.json();
+    const data = await response.json() as SenseSpaceErrorResponse | SenseSpaceSuccessResponse;
 
     if (!response.ok) {
       // Forward error from SenseSpace API
+      const errorData = data as SenseSpaceErrorResponse;
       return res.status(response.status).json({
         success: false,
-        error: data.error || data.message || 'Failed to initialize payment intent',
-        code: data.code,
+        error: errorData.error || errorData.message || 'Failed to initialize payment intent',
+        code: errorData.code,
       });
     }
 
     // Return success response
+    const successData = data as SenseSpaceSuccessResponse;
     res.json({
       success: true,
-      data: data.data || data,
+      data: successData.data || successData,
     });
   } catch (error: any) {
     console.error('Error initializing payment intent:', error);
@@ -211,21 +213,23 @@ router.post('/intent/:id', async (req, res) => {
       }),
     });
 
-    const data = await response.json();
+    const data = await response.json() as SenseSpaceErrorResponse | SenseSpaceSuccessResponse;
 
     if (!response.ok) {
       // Forward error from SenseSpace API
+      const errorData = data as SenseSpaceErrorResponse;
       return res.status(response.status).json({
         success: false,
-        error: data.error || data.message || 'Failed to confirm payment intent',
-        code: data.code,
+        error: errorData.error || errorData.message || 'Failed to confirm payment intent',
+        code: errorData.code,
       });
     }
 
     // Return success response
+    const successData = data as SenseSpaceSuccessResponse;
     res.json({
       success: true,
-      data: data.data || data,
+      data: successData.data || successData,
     });
   } catch (error: any) {
     console.error('Error confirming payment intent:', error);

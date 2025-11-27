@@ -10,10 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useUser } from '@workos-inc/authkit-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AgentPaymentDemoPage() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [amount, setAmount] = useState(10.00);
   const [agentName, setAgentName] = useState('Style Assistant');
   const [description, setDescription] = useState('Personal styling consultation');
