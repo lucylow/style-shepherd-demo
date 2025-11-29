@@ -13,6 +13,19 @@
 
 ---
 
+## 🏆 Hackathon Submission
+
+**Built for: [Calling For All Agents! Hackathon](https://dorahacks.io) - Verisense | Sense Space**
+
+- **📄 Submission Docs**: [HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)
+- **🎬 Demo Video Script**: [DEMO_VIDEO_SCRIPT_2MIN.md](./DEMO_VIDEO_SCRIPT_2MIN.md)
+- **✅ Submission Checklist**: [SUBMISSION_CHECKLIST.md](./SUBMISSION_CHECKLIST.md)
+- **⚡ Quick Start**: [HACKATHON_QUICK_START.md](./HACKATHON_QUICK_START.md)
+
+**Status**: ✅ Ready for Submission | **Deadline**: December 1, 2025, 22:51 UTC
+
+---
+
 ## 🤖 Verisense AI Agents Overview
 
 **Style Shepherd is a production-ready Verisense AI agent ecosystem** that orchestrates multiple specialized agents to solve fashion e-commerce's $550B returns problem. Registered on the Verisense network with full A2A (Agent-to-Agent) and MCP (Model Context Protocol) capabilities, our agent system delivers personalized fashion recommendations, cross-brand size predictions, and proactive return risk assessment—reducing returns by 28% while improving customer satisfaction.

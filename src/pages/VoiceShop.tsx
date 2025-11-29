@@ -30,13 +30,6 @@ const VoiceShop = () => {
 
   useScrollRestoration();
 
-  useEffect(() => {
-    loadInitialProducts();
-    if (userId !== 'guest') {
-      loadCart();
-    }
-  }, [userId]);
-
   const loadInitialProducts = async () => {
     setIsLoading(true);
     try {
@@ -48,6 +41,14 @@ const VoiceShop = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadInitialProducts();
+    if (userId !== 'guest') {
+      loadCart();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const loadCart = async () => {
     try {

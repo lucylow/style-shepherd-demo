@@ -59,6 +59,7 @@ export default function LovableLogs() {
     }));
     setLogs(initialLogs);
     setFilteredLogs(initialLogs);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -97,6 +98,7 @@ export default function LovableLogs() {
 
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRefresh]);
 
   useEffect(() => {

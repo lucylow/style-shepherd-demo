@@ -18,6 +18,7 @@ import mcpRoutes from './routes/mcp.js';
 import agentRoutes from './routes/agent.js';
 import humanInTheLoopRoutes from './routes/human-in-the-loop.js';
 import agentPaymentRoutes from './routes/agent-payment.js';
+import sponsorRoutes from './routes/sponsors.js';
 import { vultrPostgres } from './lib/vultr-postgres.js';
 import { vultrValkey } from './lib/vultr-valkey.js';
 
@@ -96,6 +97,7 @@ app.use('/api/mcp', mcpRoutes); // MCP (Model Context Protocol) server for AI ag
 app.use('/api/agent', agentRoutes);
 app.use('/api/agent-payment', agentPaymentRoutes); // Agent payment API routes
 app.use('/api/human-in-the-loop', humanInTheLoopRoutes); // Human-in-the-loop approval system
+app.use('/api/sponsors', sponsorRoutes); // Sponsor integration endpoints (Ambient, Cambrian, Letta)
 app.use('/api', apiRoutes);
 
 // Root endpoint

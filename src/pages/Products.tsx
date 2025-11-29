@@ -41,17 +41,6 @@ const Products = () => {
   useScrollRestoration();
   const { prefetchOnHover } = usePrefetch();
 
-  // Load products based on URL params
-  useEffect(() => {
-    loadProducts();
-  }, [searchQuery, riskFilter, sizeFilter, categoryFilter]);
-
-  useEffect(() => {
-    if (userId !== 'guest') {
-      loadCart();
-    }
-  }, [userId]);
-
   const loadProducts = async () => {
     setIsLoading(true);
     try {
@@ -70,6 +59,12 @@ const Products = () => {
     }
   };
 
+  // Load products based on URL params
+  useEffect(() => {
+    loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, riskFilter, sizeFilter, categoryFilter]);
+
   const loadCart = async () => {
     try {
       const cartData = await mockCartService.getCart(userId);
@@ -78,6 +73,13 @@ const Products = () => {
       console.error('Error loading cart:', error);
     }
   };
+
+  useEffect(() => {
+    if (userId !== 'guest') {
+      loadCart();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   // Update URL params (shallow routing)
   const updateFilters = useCallback((updates: Record<string, string | null>) => {

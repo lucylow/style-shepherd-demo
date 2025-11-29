@@ -3,7 +3,7 @@
  * Displays a history of all human approval requests and their status
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -34,11 +34,7 @@ export function HumanApprovalHistory({ userId, className }: HumanApprovalHistory
   const [selectedApproval, setSelectedApproval] = useState<HumanApprovalRequest | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
-  useEffect(() => {
-    loadData();
-  }, [userId, filter]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const filters: any = {};
@@ -57,7 +53,11 @@ export function HumanApprovalHistory({ userId, className }: HumanApprovalHistory
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, filter]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
