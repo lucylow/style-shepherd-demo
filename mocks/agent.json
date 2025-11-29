@@ -1,0 +1,95 @@
+{
+  "protocolVersion": "0.2.9",
+  "name": "Style Shepherd Agent",
+  "description": "A demo agent that helps generate and apply visual styles, produce frontend mock data, create image style-transfer presets, and provide design-system guidance for web UIs and pitch slides.",
+  "url": "https://style-shepherd.example.com/a2a/v1",
+  "provider": {
+    "organization": "Style Shepherd Labs",
+    "url": "https://style-shepherd.example.com"
+  },
+  "iconUrl": "https://style-shepherd.example.com/assets/icon.png",
+  "version": "0.1.0",
+  "documentationUrl": "https://style-shepherd.example.com/docs",
+  "contactEmail": "support@style-shepherd.example.com",
+  "termsOfServiceUrl": "https://style-shepherd.example.com/terms",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": true,
+    "stateTransitionHistory": false,
+    "extensions": [
+      {
+        "uri": "https://a2a-protocol.org/extensions/mcp",
+        "description": "Model Context Protocol (MCP) helper extension",
+        "required": false
+      }
+    ]
+  },
+  "securitySchemes": {
+    "apiKeyHeader": {
+      "type": "apiKey",
+      "name": "x-api-key",
+      "in": "header",
+      "description": "Simple API key in header for demo / test usage"
+    },
+    "oidc": {
+      "type": "openIdConnect",
+      "openIdConnectUrl": "https://accounts.example-oidc.com/.well-known/openid-configuration"
+    }
+  },
+  "security": [
+    { "apiKeyHeader": [] }
+  ],
+  "defaultInputModes": ["application/json", "text/plain"],
+  "defaultOutputModes": ["application/json", "image/png", "text/html"],
+  "skills": [
+    {
+      "id": "style-guide-generator",
+      "name": "Style Guide Generator",
+      "description": "Generates design tokens, color palettes, typography, and component style guidelines from a short natural-language brief or an uploaded brand image.",
+      "tags": ["design", "frontend", "tokens", "style-guide"],
+      "examples": [
+        "Generate a light/dark design token set for a fintech dashboard aimed at professionals.",
+        "{\"prompt\": \"Create a minimal, high-contrast color palette for an educational app\", \"preferences\": {\"accent\": \"blue\"}}"
+      ],
+      "inputModes": ["application/json", "text/plain"],
+      "outputModes": ["application/json", "text/html"]
+    },
+    {
+      "id": "mock-data-frontend",
+      "name": "Frontend Mock Data",
+      "description": "Produces realistic mock JSON for frontend UIs (cards, tables, agent lists, invoices) and can return Cursor/Storybook-ready fixtures.",
+      "tags": ["mock-data", "frontend", "json", "cursor"],
+      "examples": [
+        "Produce 10 AgentCard-style mock objects for an agent directory with avatars and sample capabilities.",
+        "{\"component\": \"agent-list\", \"count\": 8, \"locale\": \"en-CA\"}"
+      ],
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "image-style-transfer",
+      "name": "Image Style Transfer / Edit",
+      "description": "Applies stylistic transformations (film, cinematic, monochrome diagrammatic) to uploaded images or synthesizes style previews.",
+      "tags": ["image", "style-transfer", "editing", "visual"],
+      "examples": [
+        "Create a monochrome, diagram-style slide background from this hero photo.",
+        "{\"imageUrl\": \"https://.../photo.jpg\", \"style\": \"diagrammatic-monochrome\"}"
+      ],
+      "inputModes": ["application/json", "image/png", "image/jpeg"],
+      "outputModes": ["image/png", "image/jpeg"]
+    },
+    {
+      "id": "ux-consultant",
+      "name": "UX Micro-Consultant",
+      "description": "Provides short, actionable UI/UX recommendations and copy suggestions for product screens or marketing slides.",
+      "tags": ["ux", "copy", "recommendation", "micro-consult"],
+      "examples": [
+        "Review this hero section and suggest three headline alternatives optimized for click-through.",
+        "{\"htmlSnippet\": \"<section>...</section>\", \"goal\": \"increase signups\"}"
+      ],
+      "inputModes": ["text/html", "application/json"],
+      "outputModes": ["text/plain", "application/json"]
+    }
+  ],
+  "supportsAuthenticatedExtendedCard": true
+}
