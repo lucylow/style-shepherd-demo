@@ -21,7 +21,6 @@ export interface ParsedContent {
  */
 export function parseXMLTags(content: string): ParsedContent[] {
   const parts: ParsedContent[] = [];
-  let remaining = content;
   let lastIndex = 0;
 
   // Regex to match XML tags: <tool>, <miniapp>, <payment>

@@ -11,6 +11,8 @@
  * - Decentralized Execution: Customizable decentralization level
  */
 
+import crypto from 'crypto';
+
 export interface NucleusConfig {
   /** Unique identifier for the Nucleus */
   id: string;
@@ -193,14 +195,6 @@ export class NucleusService {
    * In production, this would be computed from actual state
    */
   private generateInitialStateRoot(): string {
-    import('crypto').then(crypto => {
-      return crypto
-        .createHash('sha256')
-        .update(`${this.config.id}-${Date.now()}`)
-        .digest('hex');
-    });
-    // Use synchronous crypto for this method
-    const crypto = await import('crypto');
     return crypto
       .createHash('sha256')
       .update(`${this.config.id}-${Date.now()}`)
