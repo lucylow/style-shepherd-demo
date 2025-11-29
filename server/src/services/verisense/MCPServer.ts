@@ -755,7 +755,7 @@ export class MCPServer {
             ],
           };
 
-        case 'recommendation_query':
+        case 'recommendation_query': {
           result = await this.nucleus.getRecommendations(args.userId, args.limit || 10);
           // Filter by minScore if provided
           const filtered = args.minScore
@@ -769,6 +769,7 @@ export class MCPServer {
               },
             ],
           };
+        }
 
         default:
           return {

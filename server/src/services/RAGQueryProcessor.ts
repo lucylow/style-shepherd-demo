@@ -349,7 +349,7 @@ Alternative queries:`;
       const expansions = response.choices[0]?.message?.content
         ?.split('\n')
         .map(line => line.trim())
-        .filter(line => line.length > 0 && !line.match(/^\d+[\.\)]/))
+        .filter(line => line.length > 0 && !line.match(/^\d+[.)]/))
         .slice(0, maxExpansions) || [];
 
       return expansions;
@@ -378,7 +378,6 @@ Alternative queries:`;
     };
 
     const expansions: string[] = [];
-    let modifiedQuery = query;
 
     for (const [word, synonyms] of Object.entries(synonymMap)) {
       if (expansions.length >= maxExpansions) break;
