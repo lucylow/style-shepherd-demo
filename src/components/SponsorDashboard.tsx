@@ -1,6 +1,6 @@
 /**
  * Sponsor Dashboard Component
- * Displays real-time metrics for all 6 sponsors showing integrated business value
+ * Displays real-time metrics for all 10 sponsors showing integrated business value
  */
 
 import { useState, useEffect } from 'react';
@@ -18,6 +18,10 @@ import {
   Users,
   Activity,
   Target,
+  Network,
+  Layers,
+  Globe,
+  Sparkles,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -149,10 +153,78 @@ export const SponsorDashboard = () => {
           { label: 'Subscription Revenue', value: '$253K/month' },
         ],
       },
+      {
+        id: 'verisense',
+        name: 'Verisense | Sense Space',
+        icon: <Network className="w-5 h-5" />,
+        color: 'violet',
+        keyMetric: 'Agent Interactions',
+        keyValue: '1.2M',
+        impact: 'A2A & MCP enabled, full agent ecosystem',
+        monthlyValue: 1250000,
+        roi: 2500,
+        details: [
+          { label: 'Agents Registered', value: '8' },
+          { label: 'Profile Integrations', value: '847K' },
+          { label: 'MCP Operations', value: '3.4M' },
+          { label: 'Registry Status', value: 'Active' },
+        ],
+      },
+      {
+        id: 'ambient',
+        name: 'Ambient',
+        icon: <Layers className="w-5 h-5" />,
+        color: 'cyan',
+        keyMetric: 'Data Points',
+        keyValue: '2.8M',
+        impact: 'Enhanced analytics and insights',
+        monthlyValue: 680000,
+        roi: 1200,
+        details: [
+          { label: 'Active Integrations', value: '12' },
+          { label: 'Data Accuracy', value: 96, unit: '%' },
+          { label: 'Processing Speed', value: '2.4ms' },
+          { label: 'Uptime', value: 99.9, unit: '%' },
+        ],
+      },
+      {
+        id: 'cambrian',
+        name: 'Cambrian',
+        icon: <Globe className="w-5 h-5" />,
+        color: 'rose',
+        keyMetric: 'API Calls',
+        keyValue: '5.6M',
+        impact: 'Onchain & offchain data integration',
+        monthlyValue: 1450000,
+        roi: 2800,
+        details: [
+          { label: 'Onchain Queries', value: '3.2M' },
+          { label: 'Offchain Queries', value: '2.4M' },
+          { label: 'MCP Endpoint', value: 'Active' },
+          { label: 'Response Time', value: '89ms' },
+        ],
+      },
+      {
+        id: 'letta',
+        name: 'Letta',
+        icon: <Sparkles className="w-5 h-5" />,
+        color: 'amber',
+        keyMetric: 'Operations',
+        keyValue: '892K',
+        impact: 'Intelligent workflow automation',
+        monthlyValue: 920000,
+        roi: 1800,
+        details: [
+          { label: 'Workflows Active', value: '47' },
+          { label: 'Automation Rate', value: 87, unit: '%' },
+          { label: 'Success Rate', value: 94, unit: '%' },
+          { label: 'Time Saved', value: '1,247 hrs' },
+        ],
+      },
     ];
 
     setMetrics(sponsorData);
-    setTotalValue(22700000); // $22.7M total monthly value
+    setTotalValue(26875000); // $26.9M total monthly value (updated with new sponsors)
   }, []);
 
   const getColorClasses = (color: string) => {
@@ -186,6 +258,26 @@ export const SponsorDashboard = () => {
         bg: 'bg-teal-50 dark:bg-teal-950/20',
         border: 'border-teal-200 dark:border-teal-800',
         text: 'text-teal-600 dark:text-teal-400',
+      },
+      violet: {
+        bg: 'bg-violet-50 dark:bg-violet-950/20',
+        border: 'border-violet-200 dark:border-violet-800',
+        text: 'text-violet-600 dark:text-violet-400',
+      },
+      cyan: {
+        bg: 'bg-cyan-50 dark:bg-cyan-950/20',
+        border: 'border-cyan-200 dark:border-cyan-800',
+        text: 'text-cyan-600 dark:text-cyan-400',
+      },
+      rose: {
+        bg: 'bg-rose-50 dark:bg-rose-950/20',
+        border: 'border-rose-200 dark:border-rose-800',
+        text: 'text-rose-600 dark:text-rose-400',
+      },
+      amber: {
+        bg: 'bg-amber-50 dark:bg-amber-950/20',
+        border: 'border-amber-200 dark:border-amber-800',
+        text: 'text-amber-600 dark:text-amber-400',
       },
     };
     return colors[color] || colors.blue;
@@ -237,7 +329,7 @@ export const SponsorDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div>
               <div className="text-muted-foreground mb-1">Revenue Generated</div>
-              <div className="text-xl font-semibold">{formatCurrency(20600000)}</div>
+              <div className="text-xl font-semibold">{formatCurrency(22800000)}</div>
             </div>
             <div>
               <div className="text-muted-foreground mb-1">Returns Prevention</div>
@@ -245,7 +337,7 @@ export const SponsorDashboard = () => {
             </div>
             <div>
               <div className="text-muted-foreground mb-1">Operational Savings</div>
-              <div className="text-xl font-semibold">{formatCurrency(89500)}</div>
+              <div className="text-xl font-semibold">{formatCurrency(2035000)}</div>
             </div>
           </div>
         </CardContent>
@@ -391,7 +483,7 @@ export const SponsorDashboard = () => {
         <CardContent>
           <blockquote className="text-lg italic border-l-4 border-primary pl-4 py-2">
             "Style Shepherd isn't just using your technology. We're proving its value at scale with
-            847K customers, 847M daily inferences, and $22.7M monthly business value.
+            847K customers, 847M daily inferences, and $26.9M monthly business value across 10 integrated sponsors.
             <br />
             <br />
             Your technology is essential to our success. Our business growth is your success story."

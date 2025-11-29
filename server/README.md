@@ -23,8 +23,9 @@ Backend API server for the Style Shepherd voice commerce platform, built accordi
 
 2. **Configure environment variables:**
    ```bash
-   cp .env.example .env
+   cp env.template .env
    # Edit .env with your credentials
+   # For SenseSpace token, get it from: https://www.sensespace.xyz/miniapps/tokens
    ```
 
 3. **Initialize database:**

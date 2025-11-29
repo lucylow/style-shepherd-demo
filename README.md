@@ -832,11 +832,14 @@ node scripts/validate_manifest.cjs
 
 ```bash
 # server/.env
+# Get your MiniApp API Token from: https://www.sensespace.xyz/miniapps/tokens
 SENSESPACE_MINIAPP_TOKEN=<your_miniapp_token>
 SENSESPACE_API_ENDPOINT=https://api.sensespace.xyz
 VERISENSE_API_KEY=<your_api_key>
 VERISENSE_WEBHOOK_SECRET=<your_webhook_secret>
 ```
+
+**Token Management**: Manage your MiniApp API Tokens at [https://www.sensespace.xyz/miniapps/tokens](https://www.sensespace.xyz/miniapps/tokens)
 
 ### Step 4: Test Agent Integration
 
@@ -1652,6 +1655,7 @@ VULTR_VALKEY_PASSWORD=<your_valkey_password>
 DATABASE_URL=postgresql://user:password@host:port/database
 
 # SenseSpace / Verisense (Optional - for user profiles)
+# Get your MiniApp API Token from: https://www.sensespace.xyz/miniapps/tokens
 SENSESPACE_MINIAPP_TOKEN=<your_miniapp_token_here>
 SENSESPACE_API_ENDPOINT=https://api.sensespace.xyz
 CACHE_TYPE=memory
@@ -2379,11 +2383,14 @@ Style Shepherd integrates with SenseSpace (Verisense) MiniApp SDK to securely fe
 2. **Configure Environment Variables** (in `server/.env`):
    ```bash
    # SenseSpace / Verisense
+   # Get your MiniApp API Token from: https://www.sensespace.xyz/miniapps/tokens
    SENSESPACE_MINIAPP_TOKEN=<your_miniapp_token_here>    # Optional - leave empty for demo mode
    SENSESPACE_API_ENDPOINT=https://api.sensespace.xyz    # Default endpoint
    CACHE_TYPE=memory                                      # or redis
    REDIS_URL=redis://localhost:6379                       # Optional (only if CACHE_TYPE=redis)
    ```
+   
+   **Token Management**: Manage your MiniApp API Tokens at [https://www.sensespace.xyz/miniapps/tokens](https://www.sensespace.xyz/miniapps/tokens)
 
 3. **Frontend Environment** (optional, in `.env`):
    ```bash
@@ -2558,7 +2565,8 @@ This repo includes a demo-mode integration for Verisense / SenseSpace. The demo 
 1. Install dependencies: `npm install`
 
 2. (Optional) Set a server-side token to fetch live profiles:
-   - `export SENSESPACE_MINIAPP_TOKEN="your_token_here"` (in `server/.env`)
+   - Get your token from: [https://www.sensespace.xyz/miniapps/tokens](https://www.sensespace.xyz/miniapps/tokens)
+   - Add `SENSESPACE_MINIAPP_TOKEN="your_token_here"` to `server/.env`
 
 3. Start dev server: 
    ```bash
