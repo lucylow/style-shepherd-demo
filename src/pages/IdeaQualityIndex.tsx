@@ -1,5 +1,6 @@
-import Navigation from '@/components/Navigation';
+import HeaderNav from '@/components/HeaderNav';
 import Footer from '@/components/Footer';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -76,8 +77,8 @@ const dashboardLinks = [
 
 export default function IdeaQualityIndex() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+      <HeaderNav />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -150,6 +151,7 @@ export default function IdeaQualityIndex() {
         </Card>
       </div>
       <Footer />
+      <MobileBottomNav />
     </div>
   );
 }

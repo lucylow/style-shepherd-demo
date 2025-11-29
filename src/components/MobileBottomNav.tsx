@@ -6,7 +6,8 @@ import {
   Mic, 
   LayoutDashboard,
   Menu,
-  X
+  X,
+  Users
 } from 'lucide-react';
 import { getNavigationLinks, getRoutesByGroup } from '@/lib/routeUtils';
 import { cn } from '@/lib/utils';

@@ -4,13 +4,18 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "validate-agent": "node scripts/validate_agent_json.js",
+    "agent:poll": "node scripts/agent_poller.js",
+    "self-improve": "node scripts/self_improve.js",
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "start": "vite preview",
     "lint": "eslint .",
     "preview": "vite preview",
     "mock:server": "json-server --watch mocks/db.json --port 4000 --host 0.0.0.0",
-    "mock:dev": "npm run mock:server"
+    "mock:dev": "npm run mock:server",
+    "test": "jest --runInBand"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -1,5 +1,6 @@
-import Navigation from '@/components/Navigation';
+import HeaderNav from '@/components/HeaderNav';
 import Footer from '@/components/Footer';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import { IdeaQualitySummary } from '@/components/idea-quality/IdeaQualitySummary';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { IdeaQualityScoringEngine } from '@/services/idea-quality-scoring-service';
@@ -16,8 +17,8 @@ export default function IdeaQualityAssessment() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+      <HeaderNav />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <h1 className="text-4xl font-bold mb-2">Idea Quality Assessment</h1>
         <p className="text-gray-600 mb-8">
@@ -107,6 +108,7 @@ export default function IdeaQualityAssessment() {
         )}
       </div>
       <Footer />
+      <MobileBottomNav />
     </div>
   );
 }

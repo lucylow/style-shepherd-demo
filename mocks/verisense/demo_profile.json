@@ -1,0 +1,54 @@
+{
+  "id": "user123",
+  "username": "Lucy Low",
+  "avatar": "/placeholder.svg",
+  "email": "low.lucyy@gmail.com",
+  "created_at": "2025-01-01T00:00:00Z",
+  "bio": "K-pop fan, loves sustainable fashion and dewy makeup.",
+  "measurements": {
+    "height_cm": 165,
+    "weight_kg": 58,
+    "bust_cm": 88,
+    "waist_cm": 70,
+    "hips_cm": 92,
+    "shoe_size_us": 7.5,
+    "inseam_cm": 75
+  },
+  "skin_tone": {
+    "undertone": "neutral",
+    "depth": "light-medium",
+    "classification": "NC25"
+  },
+  "style_history": [
+    {
+      "item_id": "p-jeans-001",
+      "item_name": "Indigo Stretch Slim Jeans",
+      "purchased_at": "2024-12-15T10:00:00Z",
+      "size": "M",
+      "returned": false,
+      "rating": 5
+    },
+    {
+      "item_id": "p-dress-002",
+      "item_name": "Pastel Linen Midi Dress",
+      "purchased_at": "2024-11-20T14:30:00Z",
+      "size": "S",
+      "returned": true,
+      "return_reason": "size too small",
+      "rating": null
+    }
+  ],
+  "preferences": {
+    "size": "M",
+    "style": "kpop",
+    "makeup_pref": "dewy",
+    "favorite_brands": ["DenimCo", "Sunrise Atelier"],
+    "price_range": {
+      "min": 50,
+      "max": 300
+    },
+    "colors": ["neutral", "pastel", "bold"],
+    "avoid_colors": ["neon", "orange"]
+  }
+}
+

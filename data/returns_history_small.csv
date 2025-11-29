@@ -1,0 +1,12 @@
+order_id,product_id,size,returned,return_reason,order_value,days_until_return
+ord-1001,p-jeans-001,M,0,,89.0,
+ord-1002,p-dress-002,S,1,size too small,129.0,5
+ord-1003,p-jacket-003,L,0,,210.0,
+ord-1004,p-top-004,M,1,fit issues,39.0,3
+ord-1005,p-skirt-005,S,0,,79.0,
+ord-1006,p-jeans-001,L,1,size too large,89.0,7
+ord-1007,p-dress-002,M,0,,129.0,
+ord-1008,p-jacket-003,M,0,,210.0,
+ord-1009,p-top-004,S,1,color mismatch,39.0,2
+ord-1010,p-skirt-005,M,0,,79.0,
+

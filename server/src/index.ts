@@ -19,6 +19,10 @@ import agentRoutes from './routes/agent.js';
 import humanInTheLoopRoutes from './routes/human-in-the-loop.js';
 import agentPaymentRoutes from './routes/agent-payment.js';
 import sponsorRoutes from './routes/sponsors.js';
+import toolsRoutes from './routes/tools.js';
+import paymentManagerRoutes from './routes/payment-manager.js';
+import ragRoutes from './routes/rag.js';
+import evidenceRoutes from './routes/evidence.js';
 import { vultrPostgres } from './lib/vultr-postgres.js';
 import { vultrValkey } from './lib/vultr-valkey.js';
 
@@ -98,6 +102,10 @@ app.use('/api/agent', agentRoutes);
 app.use('/api/agent-payment', agentPaymentRoutes); // Agent payment API routes
 app.use('/api/human-in-the-loop', humanInTheLoopRoutes); // Human-in-the-loop approval system
 app.use('/api/sponsors', sponsorRoutes); // Sponsor integration endpoints (Ambient, Cambrian, Letta)
+app.use('/api/tools', toolsRoutes); // Tools endpoints (returns-predictor, search, ambient, cambrian)
+app.use('/api/tools/payment-manager', paymentManagerRoutes); // AP2 payment manager
+app.use('/api/rag', ragRoutes); // RAG query endpoint
+app.use('/api/evidence', evidenceRoutes); // Evidence logging
 app.use('/api', apiRoutes);
 
 // Root endpoint

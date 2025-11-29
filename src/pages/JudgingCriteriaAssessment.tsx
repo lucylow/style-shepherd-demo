@@ -1,5 +1,6 @@
-import Navigation from '@/components/Navigation';
+import HeaderNav from '@/components/HeaderNav';
 import Footer from '@/components/Footer';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import { CriterionCard } from '@/components/idea-quality/CriterionCard';
 import { JudgingCriteriaSummary } from '@/components/idea-quality/JudgingCriteriaSummary';
 import { IdeaQualityAssessor } from '@/services/judging-criteria/idea-quality-assessor';
@@ -28,8 +29,8 @@ export default function JudgingCriteriaAssessment() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+      <HeaderNav />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
@@ -121,6 +122,7 @@ export default function JudgingCriteriaAssessment() {
         </div>
       </div>
       <Footer />
+      <MobileBottomNav />
     </div>
   );
 }

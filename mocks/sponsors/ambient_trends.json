@@ -1,0 +1,39 @@
+{
+  "demo_mode": true,
+  "source": "ambient",
+  "timestamp": "2025-01-27T12:00:00Z",
+  "trends": [
+    {
+      "category": "denim",
+      "keyword": "wide-leg jeans",
+      "trend_score": 0.87,
+      "growth_rate": 0.23,
+      "geographic_focus": ["SEA", "US", "EU"],
+      "data_points": 15420,
+      "insights": ["Sustainable denim is trending", "Wide-leg silhouette gaining popularity"]
+    },
+    {
+      "category": "color",
+      "keyword": "sage green",
+      "trend_score": 0.82,
+      "growth_rate": 0.31,
+      "geographic_focus": ["US", "EU"],
+      "data_points": 9870,
+      "insights": ["Earth tones are in", "Sage green replacing olive"]
+    },
+    {
+      "category": "style",
+      "keyword": "Y2K revival",
+      "trend_score": 0.75,
+      "growth_rate": 0.18,
+      "geographic_focus": ["SEA", "US"],
+      "data_points": 23410,
+      "insights": ["Gen Z driving Y2K trends", "Low-rise making comeback"]
+    }
+  ],
+  "metadata": {
+    "period": "last_30_days",
+    "aggregation": "daily"
+  }
+}
+

@@ -1,0 +1,82 @@
+[
+  {
+    "sku": "SKU-JEANS-001",
+    "product_id": "p-jeans-001",
+    "product_title": "Indigo Stretch Slim Jeans",
+    "brand": "DenimCo",
+    "price": 89.0,
+    "currency": "USD",
+    "category": "bottoms",
+    "available_sizes": ["XS", "S", "M", "L", "XL"],
+    "colors": ["indigo", "black", "white"],
+    "metadata": {
+      "material": "98% cotton, 2% elastane",
+      "fit": "slim",
+      "rise": "mid-rise"
+    }
+  },
+  {
+    "sku": "SKU-DRESS-002",
+    "product_id": "p-dress-002",
+    "product_title": "Pastel Linen Midi Dress",
+    "brand": "Sunrise Atelier",
+    "price": 129.0,
+    "currency": "USD",
+    "category": "dresses",
+    "available_sizes": ["XS", "S", "M", "L"],
+    "colors": ["pastel blue", "pastel pink", "cream"],
+    "metadata": {
+      "material": "100% linen",
+      "fit": "relaxed",
+      "length": "midi"
+    }
+  },
+  {
+    "sku": "SKU-JACKET-003",
+    "product_id": "p-jacket-003",
+    "product_title": "Tailored Wool Blazer",
+    "brand": "Maison Bleu",
+    "price": 210.0,
+    "currency": "USD",
+    "category": "outerwear",
+    "available_sizes": ["XS", "S", "M", "L", "XL"],
+    "colors": ["charcoal", "navy", "black"],
+    "metadata": {
+      "material": "85% wool, 15% polyamide",
+      "fit": "tailored",
+      "style": "blazer"
+    }
+  },
+  {
+    "sku": "SKU-TOP-004",
+    "product_id": "p-top-004",
+    "product_title": "Ribbed Knit Tank Top",
+    "brand": "DenimCo",
+    "price": 39.0,
+    "currency": "USD",
+    "category": "tops",
+    "available_sizes": ["XS", "S", "M", "L"],
+    "colors": ["black", "white", "beige"],
+    "metadata": {
+      "material": "95% cotton, 5% spandex",
+      "fit": "fitted"
+    }
+  },
+  {
+    "sku": "SKU-SKIRT-005",
+    "product_id": "p-skirt-005",
+    "product_title": "Pleated Midi Skirt",
+    "brand": "Sunrise Atelier",
+    "price": 79.0,
+    "currency": "USD",
+    "category": "bottoms",
+    "available_sizes": ["XS", "S", "M", "L"],
+    "colors": ["navy", "burgundy", "forest green"],
+    "metadata": {
+      "material": "polyester",
+      "fit": "a-line",
+      "length": "midi"
+    }
+  }
+]
+

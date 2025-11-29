@@ -1,0 +1,37 @@
+{
+  "demo_mode": true,
+  "source": "cambrian_onchain",
+  "timestamp": "2025-01-27T12:00:00Z",
+  "onchain_data": {
+    "transactions": [
+      {
+        "tx_hash": "0xabc123...",
+        "timestamp": "2025-01-26T10:00:00Z",
+        "product_id": "p-jeans-001",
+        "event_type": "purchase",
+        "value_usd": 89.0,
+        "onchain_verified": true
+      },
+      {
+        "tx_hash": "0xdef456...",
+        "timestamp": "2025-01-25T14:30:00Z",
+        "product_id": "p-dress-002",
+        "event_type": "purchase",
+        "value_usd": 129.0,
+        "onchain_verified": true
+      }
+    ],
+    "metrics": {
+      "total_transactions": 1247,
+      "total_value_usd": 156789,
+      "unique_products": 342,
+      "verified_purchases": 0.92
+    },
+    "insights": [
+      "92% of transactions verified on-chain",
+      "Average transaction value: $125.70",
+      "Top category: Dresses (28%)"
+    ]
+  }
+}
+
