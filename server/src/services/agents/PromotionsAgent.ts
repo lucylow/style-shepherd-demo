@@ -43,6 +43,9 @@ export interface NegotiationParams {
 export class PromotionsAgent {
   private readonly CACHE_TTL = 600; // 10 minutes
   private readonly NEGOTIATION_TIMEOUT = 5000; // 5 seconds
+  private readonly MIN_CART_VALUE_FOR_DISCOUNT = 50;
+  private readonly MIN_CART_VALUE_FOR_BUNDLE = 100;
+  private readonly MIN_ITEMS_FOR_FREE_SHIPPING = 3;
 
   /**
    * Apply promotions to cart (Agent-to-Agent negotiation)
@@ -137,50 +140,52 @@ export class PromotionsAgent {
     // Higher cart value = better chance of promotion
     let promotion: Promotion | undefined;
 
-    if (retailerTotal >= 100) {
+    if (retailerTotal >= this.MIN_CART_VALUE_FOR_BUNDLE) {
       // Bundle discount for high-value carts
       promotion = {
         id: `promo_${retailerId}_${Date.now()}`,
         type: 'bundle',
         discount: 15,
-        description: `15% bundle discount on orders over $100`,
+        description: `15% bundle discount on orders over $${this.MIN_CART_VALUE_FOR_BUNDLE}`,
         applicableItems: retailerItems.map(item => item.product.id),
-        minPurchase: 100,
+        minPurchase: this.MIN_CART_VALUE_FOR_BUNDLE,
       };
-    } else if (retailerTotal >= 50) {
+    } else if (retailerTotal >= this.MIN_CART_VALUE_FOR_DISCOUNT) {
       // Smaller discount for medium-value carts
       promotion = {
         id: `promo_${retailerId}_${Date.now()}`,
         type: 'discount',
         discount: 10,
-        description: `10% discount on orders over $50`,
+        description: `10% discount on orders over $${this.MIN_CART_VALUE_FOR_DISCOUNT}`,
         applicableItems: retailerItems.map(item => item.product.id),
-        minPurchase: 50,
+        minPurchase: this.MIN_CART_VALUE_FOR_DISCOUNT,
       };
-    } else if (retailerItems.length >= 3) {
+    } else if (retailerItems.length >= this.MIN_ITEMS_FOR_FREE_SHIPPING) {
       // Free shipping for multiple items
       promotion = {
         id: `promo_${retailerId}_${Date.now()}`,
         type: 'free_shipping',
-        description: `Free shipping on 3+ items`,
+        description: `Free shipping on ${this.MIN_ITEMS_FOR_FREE_SHIPPING}+ items`,
         applicableItems: retailerItems.map(item => item.product.id),
       };
     }
 
-    // Store negotiation state in Valkey (for multi-step negotiations)
+    // Store negotiation state in Valkey (for multi-step negotiations, fire and forget)
     if (promotion) {
-      try {
-        await vultrValkey.set(
-          `negotiation:${retailerId}:${params.userId || 'guest'}`,
-          {
-            promotion,
-            timestamp: Date.now(),
-          },
-          300 // 5 minutes
-        );
-      } catch (error) {
-        console.warn('Failed to cache negotiation state:', error);
-      }
+      vultrValkey.set(
+        `negotiation:${retailerId}:${params.userId || 'guest'}`,
+        {
+          promotion,
+          timestamp: Date.now(),
+        },
+        300 // 5 minutes
+      ).catch((error) => {
+        console.warn('[PromotionsAgent] Failed to cache negotiation state:', {
+          retailerId,
+          userId: params.userId || 'guest',
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     }
 
     return {

@@ -92,7 +92,7 @@ router.post(
       const { intent_id, items } = req.body;
       const cartId = `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const total = items.reduce((sum: number, item: { product_id: string; quantity: number; price: number }) => sum + item.price * item.quantity, 0);
       
       const cart = {
         id: cartId,

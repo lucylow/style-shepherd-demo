@@ -25,11 +25,12 @@ const queryClient = new QueryClient({
   },
 });
 
-// Skip to content link component
+// Skip to content link component for accessibility
 const SkipToContent = () => (
   <a
     href="#main"
-    className="skip-to-content focus:not-sr-only focus:absolute focus:top-0 focus:left-0 focus:z-50 focus:p-4 focus:bg-primary focus:text-primary-foreground focus:rounded-br-lg"
+    className="sr-only focus:not-sr-only focus:absolute focus:top-0 focus:left-0 focus:z-50 focus:p-4 focus:bg-primary focus:text-primary-foreground focus:rounded-br-lg focus:shadow-lg"
+    aria-label="Skip to main content"
   >
     Skip to main content
   </a>
@@ -44,7 +45,8 @@ const AppRoutes = () => {
     <>
       <SkipToContent />
       <RouteLoadingIndicator />
-      <Routes>
+      <main id="main" role="main">
+        <Routes>
         {routes.map((route) => {
           const { path, component: Component } = route;
           return (
@@ -59,7 +61,8 @@ const AppRoutes = () => {
             />
           );
         })}
-      </Routes>
+        </Routes>
+      </main>
     </>
   );
 };

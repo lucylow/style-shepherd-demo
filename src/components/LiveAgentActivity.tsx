@@ -9,10 +9,18 @@ import {
   TrendingUp,
   ArrowRight,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Search,
+  Filter,
+  RefreshCw,
+  XCircle
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { autonomousAgentService, type AgentActivity } from "@/services/autonomousAgentService";
 
 interface ActivityEvent {
   id: string;
@@ -20,7 +28,7 @@ interface ActivityEvent {
   agentIcon: typeof Bot;
   action: string;
   timestamp: Date;
-  status: "success" | "processing" | "pending";
+  status: "success" | "processing" | "pending" | "failed";
   details?: string;
 }
 
@@ -68,8 +76,23 @@ const generateActivity = (): ActivityEvent[] => {
 
 const LiveAgentActivity = () => {
   const [activities, setActivities] = useState<ActivityEvent[]>(generateActivity());
+  const [realActivities, setRealActivities] = useState<AgentActivity[]>([]);
   const [isLive, setIsLive] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [agentFilter, setAgentFilter] = useState<string>('all');
 
+  // Load real activities from API
+  useEffect(() => {
+    loadActivities();
+    if (isLive) {
+      const interval = setInterval(loadActivities, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [isLive]);
+
+  // Fallback to mock data
   useEffect(() => {
     if (!isLive) return;
 
@@ -85,6 +108,45 @@ const LiveAgentActivity = () => {
     return () => clearInterval(interval);
   }, [isLive]);
 
+  const loadActivities = async () => {
+    try {
+      setIsRefreshing(true);
+      const data = await autonomousAgentService.getRecentActivities(50);
+      setRealActivities(data);
+    } catch (error) {
+      console.error('Error loading activities:', error);
+      // Fallback to mock data
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Get unique agent names for filter
+  const uniqueAgents = Array.from(new Set([
+    ...activities.map(a => a.agent),
+    ...realActivities.map(a => a.agentName)
+  ]));
+
+  // Combine and filter activities
+  const allActivities = [
+    ...realActivities.map(a => ({
+      id: a.id,
+      agent: a.agentName,
+      agentIcon: Bot,
+      action: a.action,
+      timestamp: new Date(a.timestamp),
+      status: a.status as "success" | "processing" | "pending",
+      details: a.details,
+    })),
+    ...activities
+  ].filter(activity => {
+    const matchesSearch = activity.agent.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      activity.action.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || activity.status === statusFilter;
+    const matchesAgent = agentFilter === 'all' || activity.agent === agentFilter;
+    return matchesSearch && matchesStatus && matchesAgent;
+  }).sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 30);
+
   const formatTime = (date: Date) => {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
@@ -97,7 +159,7 @@ const LiveAgentActivity = () => {
     return date.toLocaleTimeString();
   };
 
-  const getStatusColor = (status: ActivityEvent["status"]) => {
+  const getStatusColor = (status: ActivityEvent["status"] | string) => {
     switch (status) {
       case "success":
         return "bg-green-500";
@@ -105,17 +167,21 @@ const LiveAgentActivity = () => {
         return "bg-yellow-500 animate-pulse";
       case "pending":
         return "bg-gray-400";
+      case "failed":
+        return "bg-red-500";
       default:
         return "bg-gray-400";
     }
   };
 
-  const getStatusIcon = (status: ActivityEvent["status"]) => {
+  const getStatusIcon = (status: ActivityEvent["status"] | string) => {
     switch (status) {
       case "success":
         return <CheckCircle2 className="w-4 h-4 text-white" />;
       case "processing":
         return <Clock className="w-4 h-4 text-white" />;
+      case "failed":
+        return <XCircle className="w-4 h-4 text-white" />;
       default:
         return <Clock className="w-4 h-4 text-white" />;
     }
@@ -139,7 +205,7 @@ const LiveAgentActivity = () => {
 
         <Card className="border-2 shadow-xl">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
               <div>
                 <CardTitle className="text-2xl flex items-center gap-2">
                   <div className={`w-3 h-3 ${isLive ? "bg-green-500" : "bg-gray-400"} rounded-full animate-pulse`} />
@@ -149,15 +215,81 @@ const LiveAgentActivity = () => {
                   Live updates from the Verisense network
                 </CardDescription>
               </div>
-              <Badge variant={isLive ? "default" : "secondary"}>
-                {isLive ? "LIVE" : "PAUSED"}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadActivities}
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                <Badge variant={isLive ? "default" : "secondary"}>
+                  {isLive ? "LIVE" : "PAUSED"}
+                </Badge>
+              </div>
+            </div>
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-3">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search activities..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-[150px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="success">Success</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={agentFilter} onValueChange={setAgentFilter}>
+                <SelectTrigger className="w-full md:w-[200px]">
+                  <SelectValue placeholder="Agent" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Agents</SelectItem>
+                  {uniqueAgents.map(agent => (
+                    <SelectItem key={agent} value={agent}>{agent}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(searchQuery || statusFilter !== 'all' || agentFilter !== 'all') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setStatusFilter('all');
+                    setAgentFilter('all');
+                  }}
+                >
+                  <XCircle className="w-4 h-4 mr-1" />
+                  Clear
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-3 max-h-[600px] overflow-y-auto scrollbar-thin">
               <AnimatePresence>
-                {activities.map((activity, idx) => {
+                {allActivities.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No activities found matching your filters</p>
+                  </div>
+                ) : (
+                  allActivities.map((activity, idx) => {
                   const Icon = activity.agentIcon;
                   return (
                     <motion.div
@@ -197,9 +329,15 @@ const LiveAgentActivity = () => {
                       <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                     </motion.div>
                   );
-                })}
+                  })}
+                )}
               </AnimatePresence>
             </div>
+            {allActivities.length > 0 && (
+              <div className="mt-4 text-xs text-muted-foreground text-center">
+                Showing {allActivities.length} of {activities.length + realActivities.length} activities
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

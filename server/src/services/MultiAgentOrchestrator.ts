@@ -88,6 +88,11 @@ export interface OrchestratedResponse {
 export class MultiAgentOrchestrator {
   private readonly MAX_PARALLEL_AGENTS = 3;
   private readonly CACHE_TTL = 3600; // 1 hour
+  private readonly AGENT_TIMEOUT_MS = 10000; // 10 seconds per agent
+  private readonly DEFAULT_SIZE_CONFIDENCE = 0.5;
+  private readonly LOW_RISK_THRESHOLD = 0.3;
+  private readonly MEDIUM_RISK_THRESHOLD = 0.6;
+  private readonly BASE_RETURN_RATE = 0.25; // Industry average
 
   /**
    * Process a fashion query through all relevant agents
@@ -173,7 +178,7 @@ export class MultiAgentOrchestrator {
 
         return {
           recommendedSize: requestedSize || 'M',
-          confidence: 0.5,
+          confidence: this.DEFAULT_SIZE_CONFIDENCE,
           reasoning: 'Default size recommendation (measurements not available)',
         };
       }
@@ -244,8 +249,14 @@ export class MultiAgentOrchestrator {
       );
 
       // Aggregate risk scores
-      const avgRiskScore = riskScores.reduce((sum, r) => sum + r.riskScore, 0) / riskScores.length;
-      const riskLevel = avgRiskScore < 0.3 ? 'low' : avgRiskScore < 0.6 ? 'medium' : 'high';
+      const avgRiskScore = riskScores.length > 0
+        ? riskScores.reduce((sum, r) => sum + r.riskScore, 0) / riskScores.length
+        : this.BASE_RETURN_RATE;
+      const riskLevel = avgRiskScore < this.LOW_RISK_THRESHOLD 
+        ? 'low' 
+        : avgRiskScore < this.MEDIUM_RISK_THRESHOLD 
+        ? 'medium' 
+        : 'high';
 
       // Identify primary factors
       const primaryFactors = this.identifyRiskFactors(riskScores, userReturnRate);
@@ -254,8 +265,14 @@ export class MultiAgentOrchestrator {
       const mitigationStrategies = this.generateMitigationStrategies(riskLevel, primaryFactors);
 
       // Calculate impact
-      const co2Saved = avgRiskScore < 0.3 ? 24 * (1 - avgRiskScore) : 0; // 24kg CO₂ per prevented return
-      const costSaved = avgRiskScore < 0.3 ? 45 * (1 - avgRiskScore) : 0; // $45 per prevented return
+      const co2PerReturn = 24; // 24kg CO₂ per prevented return
+      const costPerReturn = 45; // $45 per prevented return
+      const co2Saved = avgRiskScore < this.LOW_RISK_THRESHOLD 
+        ? co2PerReturn * (1 - avgRiskScore) 
+        : 0;
+      const costSaved = avgRiskScore < this.LOW_RISK_THRESHOLD 
+        ? costPerReturn * (1 - avgRiskScore) 
+        : 0;
 
       return {
         riskScore: avgRiskScore,
@@ -272,7 +289,7 @@ export class MultiAgentOrchestrator {
       
       // Fallback
       return {
-        riskScore: 0.25,
+        riskScore: this.BASE_RETURN_RATE,
         riskLevel: 'medium',
         primaryFactors: ['Insufficient data'],
         mitigationStrategies: ['Review product details carefully'],
@@ -371,52 +388,107 @@ export class MultiAgentOrchestrator {
 
     const promises: Promise<void>[] = [];
 
+    // Helper to create timeout promise
+    const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs)
+        ),
+      ]);
+    };
+
     // Size Oracle
     if (agents.includes('sizeOracle') && (query.entities.brand || query.entities.category)) {
       promises.push(
-        this.invokeSizeOracle(
-          query.userId,
-          query.entities.brand,
-          query.entities.category
-        ).then((result) => {
-          results.sizeOracle = result;
-        }).catch((error) => {
-          console.error('Size Oracle invocation failed:', error);
-        })
+        withTimeout(
+          this.invokeSizeOracle(
+            query.userId,
+            query.entities.brand,
+            query.entities.category
+          ),
+          this.AGENT_TIMEOUT_MS
+        )
+          .then((result) => {
+            results.sizeOracle = result;
+          })
+          .catch((error) => {
+            const appError = isAppError(error) ? error : toAppError(error);
+            console.error('[MultiAgentOrchestrator] Size Oracle invocation failed:', {
+              userId: query.userId,
+              error: appError.message,
+              stack: appError instanceof Error ? appError.stack : undefined,
+            });
+          })
       );
     }
 
     // Personal Stylist
     if (agents.includes('personalStylist')) {
       promises.push(
-        this.invokePersonalStylist(
-          query.userId,
-          query.entities,
-          query.entities.occasion
-        ).then((result) => {
-          results.personalStylist = result;
-        }).catch((error) => {
-          console.error('Personal Stylist invocation failed:', error);
-        })
+        withTimeout(
+          this.invokePersonalStylist(
+            query.userId,
+            query.entities,
+            query.entities.occasion
+          ),
+          this.AGENT_TIMEOUT_MS
+        )
+          .then((result) => {
+            results.personalStylist = result;
+          })
+          .catch((error) => {
+            const appError = isAppError(error) ? error : toAppError(error);
+            console.error('[MultiAgentOrchestrator] Personal Stylist invocation failed:', {
+              userId: query.userId,
+              error: appError.message,
+              stack: appError instanceof Error ? appError.stack : undefined,
+            });
+          })
       );
     }
 
     // Returns Prophet (depends on product recommendations)
     if (agents.includes('returnsProphet') && query.entities.productIds?.length) {
+      // Wait for size oracle if needed, with timeout
+      if (!results.sizeOracle && agents.includes('sizeOracle')) {
+        try {
+          await Promise.race([
+            Promise.allSettled(promises), // Wait for previous agents
+            new Promise<void>((_, reject) =>
+              setTimeout(() => reject(new Error('Size Oracle timeout')), 5000)
+            ),
+          ]);
+        } catch (error) {
+          // Continue even if size oracle failed
+          console.warn('[MultiAgentOrchestrator] Size Oracle not available for Returns Prophet');
+        }
+      }
+
       const sizeMap = results.sizeOracle
         ? new Map(query.entities.productIds.map((id) => [id, results.sizeOracle!.recommendedSize]))
         : undefined;
 
       promises.push(
-        this.invokeReturnsProphet(
-          query.userId,
-          query.entities.productIds,
-          sizeMap
-        ).then((result) => {
-          results.returnsProphet = result;
-        }).catch((error) => {
-          console.error('Returns Prophet invocation failed:', error);
-        })
+        withTimeout(
+          this.invokeReturnsProphet(
+            query.userId,
+            query.entities.productIds,
+            sizeMap
+          ),
+          this.AGENT_TIMEOUT_MS
+        )
+          .then((result) => {
+            results.returnsProphet = result;
+          })
+          .catch((error) => {
+            const appError = isAppError(error) ? error : toAppError(error);
+            console.error('[MultiAgentOrchestrator] Returns Prophet invocation failed:', {
+              userId: query.userId,
+              error: appError.message,
+              stack: appError instanceof Error ? appError.stack : undefined,
+            });
+          })
       );
     }
 
@@ -558,7 +630,7 @@ export class MultiAgentOrchestrator {
         if (product.sizeRecommendation) {
           parts.push(`   Recommended size: ${product.sizeRecommendation}`);
         }
-        if (product.returnRisk !== undefined && product.returnRisk < 0.3) {
+        if (product.returnRisk !== undefined && product.returnRisk < this.LOW_RISK_THRESHOLD) {
           parts.push(`   Low return risk (${Math.round(product.returnRisk * 100)}%)`);
         }
       });
@@ -601,29 +673,71 @@ export class MultiAgentOrchestrator {
     }
   }
 
-  private async getReturnsHistory(userId: string): Promise<any[]> {
+  private async getReturnsHistory(userId: string): Promise<Array<{
+    id: string;
+    user_id: string;
+    product_id: string;
+    reason?: string;
+    created_at: Date;
+    [key: string]: unknown;
+  }>> {
     try {
-      const result = await vultrPostgres.query(
+      const result = await vultrPostgres.query<{
+        id: string;
+        user_id: string;
+        product_id: string;
+        reason?: string;
+        created_at: Date;
+        [key: string]: unknown;
+      }>(
         'SELECT * FROM returns WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50',
         [userId]
       );
-      return result || [];
+      return Array.isArray(result) ? result : [];
     } catch (error) {
-      console.warn('Failed to get returns history:', error);
+      const appError = isAppError(error) ? error : toAppError(error);
+      console.warn('[MultiAgentOrchestrator] Failed to get returns history:', {
+        userId,
+        error: appError.message,
+      });
       return [];
     }
   }
 
-  private async getProductsByIds(productIds: string[]): Promise<any[]> {
+  private async getProductsByIds(productIds: string[]): Promise<Array<{
+    id: string;
+    name: string;
+    price: number;
+    brand: string;
+    category: string;
+    returnRate?: number;
+    [key: string]: unknown;
+  }>> {
+    if (productIds.length === 0) {
+      return [];
+    }
+
     try {
       const placeholders = productIds.map((_, i) => `$${i + 1}`).join(',');
-      const result = await vultrPostgres.query(
+      const result = await vultrPostgres.query<{
+        id: string;
+        name: string;
+        price: number;
+        brand: string;
+        category: string;
+        returnRate?: number;
+        [key: string]: unknown;
+      }>(
         `SELECT * FROM products WHERE id IN (${placeholders})`,
         productIds
       );
-      return result || [];
+      return Array.isArray(result) ? result : [];
     } catch (error) {
-      console.warn('Failed to get products:', error);
+      const appError = isAppError(error) ? error : toAppError(error);
+      console.warn('[MultiAgentOrchestrator] Failed to get products:', {
+        productIds: productIds.slice(0, 5), // Log first 5 to avoid log spam
+        error: appError.message,
+      });
       return [];
     }
   }
@@ -635,8 +749,8 @@ export class MultiAgentOrchestrator {
   }
 
   private calculateSizeConfidence(
-    measurements: any,
-    returnsHistory: any[],
+    measurements: Record<string, number>,
+    returnsHistory: Array<{ reason?: string; [key: string]: unknown }>,
     brandVariance: number
   ): number {
     let confidence = 0.7; // Base confidence
@@ -672,7 +786,7 @@ export class MultiAgentOrchestrator {
   }
 
   private generateSizeReasoning(
-    measurements: any,
+    measurements: Record<string, number>,
     recommendedSize: string,
     brandVariance: number
   ): string {
@@ -691,8 +805,20 @@ export class MultiAgentOrchestrator {
 
   private async calculateProductReturnRisk(
     userId: string,
-    product: any,
-    returnHistory: any[],
+    product: {
+      id: string;
+      price: number;
+      returnRate?: number;
+      [key: string]: unknown;
+    },
+    returnHistory: Array<{
+      id: string;
+      user_id: string;
+      product_id: string;
+      reason?: string;
+      created_at: Date;
+      [key: string]: unknown;
+    }>,
     sizeRecommendation?: string
   ): Promise<{ riskScore: number; factors: string[] }> {
     let riskScore = 0.25; // Base risk
@@ -733,6 +859,9 @@ export class MultiAgentOrchestrator {
     riskScores: Array<{ riskScore: number; factors: string[] }>,
     userReturnRate: number
   ): string[] {
+    if (riskScores.length === 0) {
+      return [];
+    }
     const factorCounts = new Map<string, number>();
     
     riskScores.forEach((rs) => {

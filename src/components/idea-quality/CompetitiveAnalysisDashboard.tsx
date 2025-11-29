@@ -1,41 +1,82 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, memo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { CompetitiveAnalysisService } from '@/services/competitive-analysis-service';
 import type { ComparisonMatrix } from '@/lib/idea-quality/types';
-import { CheckCircle2, XCircle, TrendingUp } from 'lucide-react';
+import { CheckCircle2, TrendingUp } from 'lucide-react';
 
-export function CompetitiveAnalysisDashboard() {
+// Constants moved outside component to prevent recreation
+const COMPETITORS = ['Pinterest', 'True Fit', 'Google Shopping'] as const;
+const STYLE_SHEPHERD_FEATURES = [
+  'Returns Prevention Engine',
+  'Voice-First Fashion AI',
+  'Cross-Brand Personalization',
+  'Environmental Impact Tracking',
+] as const;
+
+// Memoize service instance outside component to prevent recreation
+const analysisService = new CompetitiveAnalysisService();
+
+function CompetitiveAnalysisDashboardContent() {
   const [comparison, setComparison] = useState<ComparisonMatrix | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadData = async () => {
-      const service = new CompetitiveAnalysisService();
-      const data = await service.compareAgainstCompetitors(
-        ['Pinterest', 'True Fit', 'Google Shopping'],
-        [
-          'Returns Prevention Engine',
-          'Voice-First Fashion AI',
-          'Cross-Brand Personalization',
-          'Environmental Impact Tracking',
-        ]
+  // Memoize the data loading function
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await analysisService.compareAgainstCompetitors(
+        [...COMPETITORS],
+        [...STYLE_SHEPHERD_FEATURES]
       );
       setComparison(data);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load competitive analysis';
+      setError(errorMessage);
+      console.error('Error loading competitive analysis:', err);
+    } finally {
       setLoading(false);
-    };
-    loadData();
+    }
   }, []);
 
-  if (loading || !comparison) {
-    return <div className="text-center p-8">Loading competitive analysis...</div>;
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Show loading state
+  if (loading) {
+    return <LoadingSkeleton />;
+  }
+
+  // Show error state
+  if (error || !comparison) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Error Loading Analysis</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-destructive">{error || 'Failed to load competitive analysis'}</p>
+          <button
+            onClick={loadData}
+            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+            aria-label="Retry loading competitive analysis"
+          >
+            Try Again
+          </button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" role="main" aria-label="Competitive Analysis Dashboard">
       {/* Positioning Statement */}
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
         <CardHeader>
@@ -57,11 +98,11 @@ export function CompetitiveAnalysisDashboard() {
       </Card>
 
       {/* Competitors */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Competitive Landscape</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section aria-labelledby="competitors-heading">
+        <h2 id="competitors-heading" className="text-2xl font-bold mb-4">Competitive Landscape</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4" role="list">
           {comparison.competitors.map((competitor) => (
-            <Card key={competitor.id}>
+            <Card key={competitor.id} role="listitem">
               <CardHeader>
                 <CardTitle className="text-lg">{competitor.name}</CardTitle>
                 <CardDescription>{competitor.category}</CardDescription>
@@ -69,17 +110,17 @@ export function CompetitiveAnalysisDashboard() {
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm font-medium mb-2">Key Features:</p>
-                  <ul className="space-y-1 text-xs">
+                  <ul className="space-y-1 text-xs" aria-label={`${competitor.name} key features`}>
                     {competitor.keyFeatures.slice(0, 2).map((feature, idx) => (
-                      <li key={idx}>• {feature.name}</li>
+                      <li key={`${competitor.id}-feature-${idx}`}>• {feature.name}</li>
                     ))}
                   </ul>
                 </div>
                 <div>
                   <p className="text-sm font-medium mb-2 text-red-600">Limitations:</p>
-                  <ul className="space-y-1 text-xs">
+                  <ul className="space-y-1 text-xs" aria-label={`${competitor.name} limitations`}>
                     {competitor.limitations.map((lim, idx) => (
-                      <li key={idx} className="text-red-700">
+                      <li key={`${competitor.id}-limit-${idx}`} className="text-red-700">
                         • {lim.area}: {lim.description}
                       </li>
                     ))}
@@ -89,7 +130,7 @@ export function CompetitiveAnalysisDashboard() {
             </Card>
           ))}
         </div>
-      </div>
+      </section>
 
       {/* Competitive Advantages */}
       <Card className="bg-green-50 border-green-200">
@@ -142,10 +183,10 @@ export function CompetitiveAnalysisDashboard() {
           <CardTitle>Unique Capabilities</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3" role="list" aria-label="Unique capabilities">
             {comparison.styleShepherd.uniquePoints.map((point, idx) => (
-              <div key={idx} className="flex items-start space-x-2">
-                <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div key={`unique-point-${idx}`} className="flex items-start space-x-2" role="listitem">
+                <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" aria-hidden="true" />
                 <p className="text-sm">{point}</p>
               </div>
             ))}
@@ -155,4 +196,37 @@ export function CompetitiveAnalysisDashboard() {
     </div>
   );
 }
+
+// Loading skeleton component
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96 mt-2" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-24 w-full" />
+        </CardContent>
+      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <Card key={i}>
+            <CardHeader>
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-4 w-24 mt-2" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-32 w-full" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Export memoized component
+export const CompetitiveAnalysisDashboard = memo(CompetitiveAnalysisDashboardContent);
 

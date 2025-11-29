@@ -144,7 +144,7 @@ export class CartAgent {
   private async scoreProduct(
     product: Product,
     returnRisk: ReturnRiskPrediction | undefined,
-    userProfile: any,
+    userProfile: Record<string, unknown> | null,
     params: CartOptimizationParams
   ): Promise<number> {
     let score = 0.5; // Base score
@@ -164,10 +164,18 @@ export class CartAgent {
 
     // Factor 3: User preferences
     if (userProfile) {
-      if (userProfile.preferences?.favoriteColors?.includes(product.color || '')) {
+      const prefs = userProfile.preferences as Record<string, unknown> | undefined;
+      const favoriteColors = Array.isArray(prefs?.favoriteColors) 
+        ? prefs.favoriteColors as string[] 
+        : [];
+      const preferredBrands = Array.isArray(prefs?.preferredBrands) 
+        ? prefs.preferredBrands as string[] 
+        : [];
+
+      if (product.color && favoriteColors.includes(product.color)) {
         score += 0.15;
       }
-      if (userProfile.preferences?.preferredBrands?.includes(product.brand)) {
+      if (preferredBrands.includes(product.brand)) {
         score += 0.15;
       }
     }
@@ -199,7 +207,7 @@ export class CartAgent {
       score: number;
     }>,
     params: CartOptimizationParams,
-    userProfile: any
+    userProfile: Record<string, unknown> | null
   ): Promise<{ items: CartItem[] }> {
     const items: CartItem[] = [];
     let totalPrice = 0;
@@ -280,7 +288,7 @@ export class CartAgent {
     items: CartItem[],
     totalSavings: number,
     averageReturnRisk: number,
-    userProfile: any
+    userProfile: Record<string, unknown> | null
   ): string[] {
     const recommendations: string[] = [];
 

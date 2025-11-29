@@ -53,28 +53,36 @@ export class SearchAgent {
    */
   async search(params: SearchParams, userId?: string): Promise<SearchResult> {
     const startTime = Date.now();
-    const limit = params.limit || this.DEFAULT_LIMIT;
+    const limit = Math.min(params.limit || this.DEFAULT_LIMIT, 100); // Cap at 100
 
     // Check cache first
-    const cacheKey = `search:${JSON.stringify(params)}`;
+    const cacheKey = `search:${JSON.stringify(params)}:${userId || 'anonymous'}`;
     try {
       const cached = await vultrValkey.get<SearchResult>(cacheKey);
       if (cached) {
-        console.log('✅ Returning cached search results');
+        console.log('[SearchAgent] ✅ Returning cached search results');
         return cached;
       }
     } catch (error) {
       // Cache miss is fine, continue
+      console.debug('[SearchAgent] Cache miss:', error instanceof Error ? error.message : String(error));
     }
 
     try {
-      // Get user preferences if available
-      let userPreferences: any = null;
+      // Get user preferences if available (with timeout)
+      let userPreferences: Record<string, unknown> | null = null;
       if (userId) {
         try {
-          userPreferences = await userMemory.get(userId);
+          const preferencesPromise = userMemory.get(userId);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('User preferences fetch timeout')), 2000)
+          );
+          userPreferences = await Promise.race([preferencesPromise, timeoutPromise]);
         } catch (error) {
-          console.warn('Failed to get user preferences:', error);
+          console.warn('[SearchAgent] Failed to get user preferences:', {
+            userId,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }
 
@@ -84,13 +92,21 @@ export class SearchAgent {
       // Simulate multi-merchant search (in production, this would call actual merchant APIs)
       const products = await this.searchMultipleMerchants(enhancedParams, limit);
 
-      // Rank products using SmartInference if available
+      // Rank products using SmartInference if available (with timeout)
       let rankedProducts = products;
-      if (styleInference && userId) {
+      if (styleInference && userId && products.length > 0) {
         try {
-          rankedProducts = await this.rankWithAI(products, userId, enhancedParams);
+          const rankingPromise = this.rankWithAI(products, userId, enhancedParams);
+          const timeoutPromise = new Promise<Product[]>((resolve) =>
+            setTimeout(() => resolve(products), 3000)
+          );
+          rankedProducts = await Promise.race([rankingPromise, timeoutPromise]);
         } catch (error) {
-          console.warn('AI ranking failed, using default ranking:', error);
+          console.warn('[SearchAgent] AI ranking failed, using default ranking:', {
+            userId,
+            productCount: products.length,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }
 
@@ -101,16 +117,16 @@ export class SearchAgent {
         products: finalProducts,
         totalFound: products.length,
         searchTime: Date.now() - startTime,
-        merchants: [...new Set(finalProducts.map(p => p.merchantName || 'Unknown'))],
+        merchants: [...new Set(finalProducts.map(p => p.merchantName || 'Unknown').filter(Boolean))],
       };
 
-      // Cache results
-      try {
-        await vultrValkey.set(cacheKey, result, this.CACHE_TTL);
-      } catch (error) {
-        // Cache failure is non-critical
-        console.warn('Failed to cache search results:', error);
-      }
+      // Cache results (fire and forget to avoid blocking)
+      vultrValkey.set(cacheKey, result, this.CACHE_TTL).catch((error) => {
+        console.warn('[SearchAgent] Failed to cache search results:', {
+          cacheKey: cacheKey.substring(0, 50),
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
 
       return result;
     } catch (error) {
@@ -118,7 +134,10 @@ export class SearchAgent {
         'SearchAgent',
         `Product search failed: ${error instanceof Error ? error.message : String(error)}`,
         error as Error,
-        { params, userId }
+        { 
+          params: { ...params, query: params.query.substring(0, 50) }, // Truncate for logging
+          userId 
+        }
       );
     }
   }
@@ -212,18 +231,26 @@ export class SearchAgent {
   /**
    * Enhance search params with user preferences
    */
-  private enhanceSearchParams(params: SearchParams, userProfile: any): SearchParams {
+  private enhanceSearchParams(
+    params: SearchParams, 
+    userProfile: Record<string, unknown> | null
+  ): SearchParams {
     if (!userProfile) return params;
 
     const enhanced: SearchParams = { ...params };
+    const prefs = userProfile.preferences as Record<string, unknown> | undefined;
+    const sizePrefs = userProfile.sizePreferences as Record<string, string> | undefined;
+
     enhanced.preferences = {
       ...params.preferences,
-      colors: params.preferences?.colors || userProfile.preferences?.favoriteColors,
-      brands: params.preferences?.brands || userProfile.preferences?.preferredBrands,
-      styles: params.preferences?.styles || userProfile.preferences?.preferredStyles,
-      sizes: params.preferences?.sizes || userProfile.sizePreferences 
-        ? Object.values(userProfile.sizePreferences) 
-        : undefined,
+      colors: params.preferences?.colors || 
+        (Array.isArray(prefs?.favoriteColors) ? prefs.favoriteColors as string[] : undefined),
+      brands: params.preferences?.brands || 
+        (Array.isArray(prefs?.preferredBrands) ? prefs.preferredBrands as string[] : undefined),
+      styles: params.preferences?.styles || 
+        (Array.isArray(prefs?.preferredStyles) ? prefs.preferredStyles as string[] : undefined),
+      sizes: params.preferences?.sizes || 
+        (sizePrefs ? Object.values(sizePrefs).filter((s): s is string => typeof s === 'string') : undefined),
     };
 
     return enhanced;

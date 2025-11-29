@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, TrendingUp, Clock, X } from 'lucide-react';
 import { Input } from './ui/input';
@@ -14,7 +14,7 @@ interface SearchSuggestionsProps {
   popularSearches?: string[];
 }
 
-export const SearchSuggestions = ({
+export const SearchSuggestions = memo(({
   value,
   onChange,
   onSelect,
@@ -23,36 +23,37 @@ export const SearchSuggestions = ({
   popularSearches = [],
 }: SearchSuggestionsProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [filteredSearches, setFilteredSearches] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (value.trim()) {
-      // Filter products
-      const productMatches = products
-        .filter(p =>
-          p.name.toLowerCase().includes(value.toLowerCase()) ||
-          p.brand.toLowerCase().includes(value.toLowerCase()) ||
-          p.category.toLowerCase().includes(value.toLowerCase())
-        )
-        .slice(0, 5);
-
-      // Filter recent searches
-      const searchMatches = recentSearches
-        .filter(s => s.toLowerCase().includes(value.toLowerCase()))
-        .slice(0, 3);
-
-      setFilteredProducts(productMatches);
-      setFilteredSearches(searchMatches);
-      setIsOpen(true);
-    } else {
-      setFilteredProducts([]);
-      setFilteredSearches([]);
-      setIsOpen(false);
+  // Memoize filtered results to prevent unnecessary recalculations
+  const { filteredProducts, filteredSearches } = useMemo(() => {
+    if (!value.trim()) {
+      return {
+        filteredProducts: [],
+        filteredSearches: [],
+      };
     }
+
+    const productMatches = products
+      .filter(p =>
+        p.name.toLowerCase().includes(value.toLowerCase()) ||
+        p.brand.toLowerCase().includes(value.toLowerCase()) ||
+        p.category.toLowerCase().includes(value.toLowerCase())
+      )
+      .slice(0, 5);
+
+    const searchMatches = recentSearches
+      .filter(s => s.toLowerCase().includes(value.toLowerCase()))
+      .slice(0, 3);
+
+    return {
+      filteredProducts: productMatches,
+      filteredSearches: searchMatches,
+    };
   }, [value, products, recentSearches]);
+
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -68,12 +69,12 @@ export const SearchSuggestions = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelect = (query: string) => {
+  const handleSelect = useCallback((query: string) => {
     onSelect(query);
     setIsOpen(false);
-  };
+  }, [onSelect]);
 
-  const showSuggestions = isOpen && (filteredProducts.length > 0 || filteredSearches.length > 0 || !value.trim());
+  const shouldShowSuggestions = isOpen && (filteredProducts.length > 0 || filteredSearches.length > 0 || !value.trim());
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -104,7 +105,7 @@ export const SearchSuggestions = ({
       </div>
 
       <AnimatePresence>
-        {showSuggestions && (
+        {shouldShowSuggestions && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -215,5 +216,5 @@ export const SearchSuggestions = ({
       </AnimatePresence>
     </div>
   );
-};
+});
 

@@ -41,7 +41,7 @@ router.post(
           body: JSON.stringify({ query, top_k: 3 }),
         });
         if (searchResponse.ok) {
-          const searchData = await searchResponse.json();
+          const searchData = await searchResponse.json() as { docs?: any[] };
           docs = searchData.docs || [];
         }
       } catch (error) {

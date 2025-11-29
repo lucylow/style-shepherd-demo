@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Bot, 
@@ -9,11 +9,16 @@ import {
   Clock,
   CheckCircle2,
   ArrowRight,
-  Network
+  Network,
+  Activity,
+  Zap,
+  RefreshCw
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { autonomousAgentService, type AutonomousAgentState } from "@/services/autonomousAgentService";
 
 interface Agent {
   id: string;
@@ -92,6 +97,36 @@ const agents: Agent[] = [
 const VerisenseAgentShowcase = () => {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [hoveredAgent, setHoveredAgent] = useState<string | null>(null);
+  const [agentStates, setAgentStates] = useState<Map<string, AutonomousAgentState>>(new Map());
+  const [isLoadingStates, setIsLoadingStates] = useState(false);
+
+  useEffect(() => {
+    loadAgentStates();
+    const interval = setInterval(loadAgentStates, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadAgentStates = async () => {
+    try {
+      setIsLoadingStates(true);
+      const states = await autonomousAgentService.getAllAgentsStatus();
+      const stateMap = new Map<string, AutonomousAgentState>();
+      states.forEach(state => {
+        // Map agent IDs to showcase agent IDs
+        const showcaseId = state.agentId.replace('-agent', '').replace('autonomous-', '');
+        stateMap.set(showcaseId, state);
+      });
+      setAgentStates(stateMap);
+    } catch (error) {
+      console.error('Error loading agent states:', error);
+    } finally {
+      setIsLoadingStates(false);
+    }
+  };
+
+  const getAgentState = (agentId: string): AutonomousAgentState | undefined => {
+    return agentStates.get(agentId);
+  };
 
   const getStatusColor = (status: Agent["status"]) => {
     switch (status) {
@@ -127,9 +162,19 @@ const VerisenseAgentShowcase = () => {
             <Network className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium text-primary">Verisense AI Agents</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-            Meet Our Verisense AI Agent Team
-          </h2>
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground">
+              Meet Our Verisense AI Agent Team
+            </h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadAgentStates}
+              disabled={isLoadingStates}
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoadingStates ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto">
             Specialized AI agents working together on the Verisense network, powered by A2A communication and MCP services
           </p>
@@ -140,6 +185,9 @@ const VerisenseAgentShowcase = () => {
             const Icon = agent.icon;
             const isHovered = hoveredAgent === agent.id;
             const isSelected = selectedAgent?.id === agent.id;
+            const agentState = getAgentState(agent.id);
+            const displayStatus = agentState ? agentState.health.healthy : agent.status;
+            const healthScore = agentState?.health.healthScore;
 
             return (
               <motion.div
@@ -159,9 +207,16 @@ const VerisenseAgentShowcase = () => {
                       <div className={`w-14 h-14 ${agent.color} rounded-xl flex items-center justify-center shadow-lg`}>
                         <Icon className="w-7 h-7 text-white" />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 ${getStatusColor(agent.status)} rounded-full animate-pulse`} />
-                        <span className="text-xs text-muted-foreground">{getStatusText(agent.status)}</span>
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 ${getStatusColor(displayStatus)} rounded-full animate-pulse`} />
+                          <span className="text-xs text-muted-foreground">{getStatusText(displayStatus)}</span>
+                        </div>
+                        {healthScore !== undefined && (
+                          <Badge variant="outline" className="text-xs">
+                            {Math.round(healthScore * 100)}% health
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <CardTitle className="text-xl mb-2">{agent.name}</CardTitle>
@@ -171,6 +226,29 @@ const VerisenseAgentShowcase = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
+                      {agentState && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Performance</span>
+                            <span className="font-semibold">
+                              {Math.round(agentState.performance.performanceScore * 100)}%
+                            </span>
+                          </div>
+                          <Progress value={agentState.performance.performanceScore * 100} className="h-1" />
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-muted-foreground">Success</span>
+                              <div className="font-semibold">
+                                {Math.round(agentState.performance.successRate * 100)}%
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Latency</span>
+                              <div className="font-semibold">{agentState.performance.avgLatency}ms</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div className="flex flex-wrap gap-2">
                         {agent.verisenseFeatures.slice(0, 2).map((feature, idx) => (
                           <Badge key={idx} variant="secondary" className="text-xs">
@@ -257,11 +335,47 @@ const VerisenseAgentShowcase = () => {
                           </Badge>
                         ))}
                       </div>
-                      <div className="mt-4 p-4 bg-primary/5 rounded-lg">
+                      <div className="mt-4 p-4 bg-primary/5 rounded-lg space-y-2">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Clock className="w-4 h-4" />
                           <span>Status: <span className="font-semibold text-foreground">{getStatusText(selectedAgent.status)}</span></span>
                         </div>
+                        {(() => {
+                          const state = getAgentState(selectedAgent.id);
+                          if (state) {
+                            return (
+                              <>
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-muted-foreground">Health Score</span>
+                                  <span className="font-semibold">
+                                    {Math.round(state.health.healthScore * 100)}%
+                                  </span>
+                                </div>
+                                <Progress value={state.health.healthScore * 100} className="h-1" />
+                                <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                                  <div>
+                                    <span className="text-muted-foreground">Success Rate</span>
+                                    <div className="font-semibold">
+                                      {Math.round(state.performance.successRate * 100)}%
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Avg Latency</span>
+                                    <div className="font-semibold">{state.performance.avgLatency}ms</div>
+                                  </div>
+                                </div>
+                                {state.goals.length > 0 && (
+                                  <div className="mt-2">
+                                    <div className="text-xs text-muted-foreground mb-1">
+                                      {state.goals.length} active goal{state.goals.length !== 1 ? 's' : ''}
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     </div>
                   </div>

@@ -104,8 +104,8 @@ export class AutonomousSearchAgent extends AutonomousAgentBase {
         { params, userId, decision }
       );
 
-      // Track popular queries for proactive caching
-      this.trackPopularQuery(params.query);
+        // Track popular queries for proactive caching (non-blocking)
+      setImmediate(() => this.trackPopularQuery(params.query));
 
       return result;
     } catch (error) {
@@ -464,15 +464,17 @@ export class AutonomousSearchAgent extends AutonomousAgentBase {
    * Track popular query
    */
   private trackPopularQuery(query: string): void {
-    const count = this.popularQueries.get(query) || 0;
-    this.popularQueries.set(query, count + 1);
+    if (!query || query.length === 0) return;
 
-    // Keep only top 100 queries
+    const normalizedQuery = query.toLowerCase().trim();
+    const count = this.popularQueries.get(normalizedQuery) || 0;
+    this.popularQueries.set(normalizedQuery, count + 1);
+
+    // Keep only top 100 queries (more efficient cleanup)
     if (this.popularQueries.size > 100) {
-      const sorted = Array.from(this.popularQueries.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 100);
-      this.popularQueries = new Map(sorted);
+      const entries = Array.from(this.popularQueries.entries());
+      entries.sort((a, b) => b[1] - a[1]);
+      this.popularQueries = new Map(entries.slice(0, 100));
     }
   }
 }

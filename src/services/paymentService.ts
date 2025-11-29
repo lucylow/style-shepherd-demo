@@ -1,5 +1,6 @@
 import { CartItem } from '@/types/fashion';
 import { getApiBaseUrl } from '@/lib/api-config';
+import { retryWithBackoff } from '@/lib/retry-utility';
 
 export interface PaymentIntent {
   clientSecret: string;
@@ -39,38 +40,15 @@ interface PaymentMethod {
 
 class PaymentService {
   private API_BASE = getApiBaseUrl();
-  private readonly MAX_RETRIES = 3;
-  private readonly RETRY_DELAY = 1000;
 
   /**
-   * Retry wrapper for API calls
+   * Retry wrapper for API calls using shared utility
    */
-  private async retryApiCall<T>(
-    operation: () => Promise<T>,
-    retries: number = this.MAX_RETRIES
-  ): Promise<T> {
-    let lastError: any;
-    
-    for (let attempt = 0; attempt < retries; attempt++) {
-      try {
-        return await operation();
-      } catch (error: any) {
-        lastError = error;
-        
-        // Don't retry on client errors (4xx)
-        if (error.status >= 400 && error.status < 500) {
-          throw error;
-        }
-        
-        // Exponential backoff
-        if (attempt < retries - 1) {
-          const delay = this.RETRY_DELAY * Math.pow(2, attempt);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      }
-    }
-    
-    throw lastError;
+  private async retryApiCall<T>(operation: () => Promise<T>): Promise<T> {
+    return retryWithBackoff(operation, {
+      maxRetries: 3,
+      retryDelay: 1000,
+    });
   }
 
   /**

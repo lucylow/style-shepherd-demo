@@ -44,11 +44,12 @@ export class ReturnsAgent {
     
     try {
       const cached = await vultrValkey.get<ReturnRiskPrediction>(cacheKey);
-      if (cached) {
+      if (cached && this.isValidCachedPrediction(cached)) {
         return cached;
       }
     } catch (error) {
-      // Cache miss is fine
+      // Cache miss is fine, continue to compute
+      console.debug('[ReturnsAgent] Cache miss:', error instanceof Error ? error.message : String(error));
     }
 
     try {
@@ -210,12 +211,13 @@ export class ReturnsAgent {
         estimatedReturnCost,
       };
 
-      // Cache prediction
-      try {
-        await vultrValkey.set(cacheKey, prediction, this.CACHE_TTL);
-      } catch (error) {
-        // Non-critical
-      }
+      // Cache prediction (fire and forget)
+      vultrValkey.set(cacheKey, prediction, this.CACHE_TTL).catch((error) => {
+        console.debug('[ReturnsAgent] Failed to cache prediction:', {
+          cacheKey: cacheKey.substring(0, 50),
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
 
       return prediction;
     } catch (error) {
@@ -312,6 +314,21 @@ export class ReturnsAgent {
     }
 
     return null;
+  }
+
+  /**
+   * Validate cached prediction structure
+   */
+  private isValidCachedPrediction(prediction: unknown): prediction is ReturnRiskPrediction {
+    if (!prediction || typeof prediction !== 'object') return false;
+    const p = prediction as Record<string, unknown>;
+    return (
+      typeof p.riskScore === 'number' &&
+      typeof p.riskLevel === 'string' &&
+      typeof p.confidence === 'number' &&
+      Array.isArray(p.factors) &&
+      Array.isArray(p.mitigationStrategies)
+    );
   }
 
   /**

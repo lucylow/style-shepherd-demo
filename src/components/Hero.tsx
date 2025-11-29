@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Mic, PlayCircle, Sparkles, Bot, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,37 @@ import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { SenseSpaceContentRenderer } from "./sensespace";
 
+interface Message {
+  role: "user" | "assistant";
+  text: string;
+}
+
+const INITIAL_CONVERSATION: Message[] = [
+  { role: "user", text: "What should I wear to a beach wedding?" },
+  {
+    role: "assistant",
+    text: "For a beach wedding, I recommend a lightweight linen suit or a flowy maxi dress. Would you like to see some options?",
+  },
+];
+
+const QUICK_ACTIONS = [
+  "What's my size in Levi's?",
+  "Find summer dresses under $50",
+] as const;
+
+const RESPONSES: Record<string, string> = {
+  "What's my size in Levi's?":
+    "Based on your profile, you're a size 31 in Levi's 511 jeans. Your usual size 32 runs a bit large in this brand.",
+  "Find summer dresses under $50":
+    "I found 15 summer dresses under $50 that match your style! Showing options from H&M, Old Navy, and ASOS with low return risk.",
+};
+
 const Hero = () => {
   const [stats, setStats] = useState({ returns: 0, timeSaved: 0, rating: 0 });
+  const [conversation, setConversation] = useState<Message[]>(INITIAL_CONVERSATION);
+  const [input, setInput] = useState("");
 
+  // Animate stats on mount
   useEffect(() => {
     const targets = { returns: 90, timeSaved: 50, rating: 4.9 };
     const duration = 2000;
@@ -33,42 +61,54 @@ const Hero = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const [conversation, setConversation] = useState([
-    { role: "user", text: "What should I wear to a beach wedding?" },
-    {
-      role: "assistant",
-      text: "For a beach wedding, I recommend a lightweight linen suit or a flowy maxi dress. Would you like to see some options?",
-    },
-  ]);
-  const [input, setInput] = useState("");
+  // Memoize quick actions to prevent recreation on each render
+  const quickActions = useMemo(() => QUICK_ACTIONS, []);
 
-  const quickActions = [
-    "What's my size in Levi's?",
-    "Find summer dresses under $50",
-  ];
+  // Memoize addMessage callback to prevent recreation
+  const addMessage = useCallback((text: string) => {
+    if (!text.trim()) return;
 
-  const handleQuickAction = (question: string) => {
-    setInput(question);
-    addMessage(question);
-  };
-
-  const addMessage = (text: string) => {
-    setConversation([...conversation, { role: "user", text }]);
+    setConversation((prev) => [...prev, { role: "user", text: text.trim() }]);
     setInput("");
 
     setTimeout(() => {
-      const responses: Record<string, string> = {
-        "What's my size in Levi's?":
-          "Based on your profile, you're a size 31 in Levi's 511 jeans. Your usual size 32 runs a bit large in this brand.",
-        "Find summer dresses under $50":
-          "I found 15 summer dresses under $50 that match your style! Showing options from H&M, Old Navy, and ASOS with low return risk.",
-      };
       const response =
-        responses[text] ||
+        RESPONSES[text] ||
         "I'd be happy to help with that! Could you provide a bit more detail about what you're looking for?";
       setConversation((prev) => [...prev, { role: "assistant", text: response }]);
     }, 1000);
-  };
+  }, []);
+
+  // Memoize handleQuickAction callback
+  const handleQuickAction = useCallback(
+    (question: string) => {
+      setInput(question);
+      addMessage(question);
+    },
+    [addMessage]
+  );
+
+  // Memoize input change handler
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+  }, []);
+
+  // Memoize enter key handler
+  const handleKeyPress = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter" && input.trim()) {
+        addMessage(input);
+      }
+    },
+    [input, addMessage]
+  );
+
+  // Memoize submit handler
+  const handleSubmit = useCallback(() => {
+    if (input.trim()) {
+      addMessage(input);
+    }
+  }, [input, addMessage]);
 
   return (
     <section className="pt-24 pb-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-[#667eea] to-[#764ba2] text-white">
@@ -164,7 +204,7 @@ const Hero = () => {
                 <AnimatePresence>
                   {conversation.map((msg, idx) => (
                     <motion.div
-                      key={idx}
+                      key={`${msg.role}-${idx}-${msg.text.slice(0, 20)}`}
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       transition={{ duration: 0.3, delay: idx * 0.1 }}
@@ -213,11 +253,12 @@ const Hero = () => {
                   type="text"
                   placeholder="Type your fashion question..."
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && input && addMessage(input)}
+                  onChange={handleInputChange}
+                  onKeyPress={handleKeyPress}
                   className="flex-1"
+                  aria-label="Fashion question input"
                 />
-                <Button onClick={() => input && addMessage(input)}>
+                <Button onClick={handleSubmit} aria-label="Send message">
                   <span>→</span>
                 </Button>
               </div>
@@ -225,11 +266,12 @@ const Hero = () => {
               <div className="grid grid-cols-2 gap-3 mt-4">
                 {quickActions.map((action, idx) => (
                   <Button
-                    key={idx}
+                    key={`quick-action-${idx}`}
                     variant="secondary"
                     size="sm"
                     onClick={() => handleQuickAction(action)}
                     className="text-xs"
+                    aria-label={`Quick action: ${action}`}
                   >
                     "{action}"
                   </Button>

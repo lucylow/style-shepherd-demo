@@ -69,6 +69,7 @@ const VerisenseDemoPage = lazy(() => import('@/pages/VerisenseDemo'));
 const AgentPaymentDemo = lazy(() => import('@/pages/AgentPaymentDemo'));
 const AdminMetrics = lazy(() => import('@/pages/admin/metrics'));
 const Agents = lazy(() => import('@/pages/Agents'));
+const AutonomousAgents = lazy(() => import('@/pages/AutonomousAgents'));
 
 /**
  * Route configuration organized by feature groups
@@ -113,6 +114,16 @@ export const routes: RouteConfig[] = [
       description: 'Manage AI agents',
       group: 'public',
       order: 4,
+    },
+  },
+  {
+    path: '/autonomous-agents',
+    component: AutonomousAgents,
+    metadata: {
+      title: 'Autonomous Agents',
+      description: 'Monitor and manage autonomous AI agents',
+      group: 'public',
+      order: 5,
     },
   },
 

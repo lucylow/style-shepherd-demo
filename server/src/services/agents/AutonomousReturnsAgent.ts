@@ -154,15 +154,23 @@ export class AutonomousReturnsAgent extends AutonomousAgentBase {
     productId: string,
     actualOutcome: 'returned' | 'kept'
   ): Promise<void> {
-    // Find matching predictions
-    const predictions = Array.from(this.predictionHistory.entries())
-      .filter(([id]) => id.startsWith(`${userId}:${productId}:`))
-      .map(([id, acc]) => ({ id, accuracy: acc }));
+    // Find matching predictions (batch process for efficiency)
+    const prefix = `${userId}:${productId}:`;
+    const matchingEntries: Array<[string, PredictionAccuracy]> = [];
+    
+    for (const [id, prediction] of this.predictionHistory.entries()) {
+      if (id.startsWith(prefix)) {
+        matchingEntries.push([id, prediction]);
+      }
+    }
 
-    for (const { id, accuracy } of predictions) {
-      const prediction = this.predictionHistory.get(id);
-      if (!prediction) continue;
+    if (matchingEntries.length === 0) {
+      console.debug('[AutonomousReturnsAgent] No matching predictions found for outcome tracking');
+      return;
+    }
 
+    // Process all matching predictions
+    const learningPromises = matchingEntries.map(async ([id, prediction]) => {
       // Calculate accuracy
       const predictedRisk = prediction.predictedRisk;
       const expectedReturn = actualOutcome === 'returned';
@@ -173,12 +181,10 @@ export class AutonomousReturnsAgent extends AutonomousAgentBase {
       // Update accuracy
       prediction.actualOutcome = actualOutcome;
       prediction.accuracy = accuracyScore;
+      this.predictionHistory.set(id, prediction);
 
-      // Update model accuracy
-      this.updateModelAccuracy();
-
-      // Learn from outcome
-      await this.learnFromOutcome({
+      // Learn from outcome (non-blocking)
+      return this.learnFromOutcome({
         action: 'predict',
         success: accuracyScore > 0.7,
         metrics: {
@@ -189,7 +195,12 @@ export class AutonomousReturnsAgent extends AutonomousAgentBase {
         timestamp: Date.now(),
         context: { userId, productId, prediction },
       });
-    }
+    });
+
+    await Promise.allSettled(learningPromises);
+    
+    // Update model accuracy once after processing all predictions
+    this.updateModelAccuracy();
   }
 
   /**
@@ -496,12 +507,11 @@ export class AutonomousReturnsAgent extends AutonomousAgentBase {
       timestamp: Date.now(),
     });
 
-    // Keep only recent predictions
+    // Keep only recent predictions (more efficient cleanup)
     if (this.predictionHistory.size > 1000) {
-      const sorted = Array.from(this.predictionHistory.entries())
-        .sort((a, b) => b[1].timestamp - a[1].timestamp)
-        .slice(0, 1000);
-      this.predictionHistory = new Map(sorted);
+      const entries = Array.from(this.predictionHistory.entries());
+      entries.sort((a, b) => b[1].timestamp - a[1].timestamp);
+      this.predictionHistory = new Map(entries.slice(0, 1000));
     }
   }
 

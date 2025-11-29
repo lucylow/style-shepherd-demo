@@ -65,12 +65,31 @@ export abstract class AutonomousAgentBase {
 
   private healthCheckTimer?: NodeJS.Timeout;
   private proactiveActionTimer?: NodeJS.Timeout;
+  private saveStateTimer?: NodeJS.Timeout;
+  private readonly SAVE_STATE_DEBOUNCE_MS = 5000; // 5 seconds
 
   constructor(agentId: string, agentName: string) {
     this.agentId = agentId;
     this.agentName = agentName;
     this.state = this.initializeState();
     this.startAutonomousOperations();
+  }
+
+  /**
+   * Debounced state save to reduce write operations
+   */
+  private debouncedSaveState(): void {
+    if (this.saveStateTimer) {
+      clearTimeout(this.saveStateTimer);
+    }
+    this.saveStateTimer = setTimeout(() => {
+      this.saveState().catch(err => {
+        console.warn(`[${this.agentName}] Failed to save state:`, {
+          agentId: this.agentId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+    }, this.SAVE_STATE_DEBOUNCE_MS);
   }
 
   /**
@@ -123,10 +142,20 @@ export abstract class AutonomousAgentBase {
   public stopAutonomousOperations(): void {
     if (this.healthCheckTimer) {
       clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = undefined;
     }
     if (this.proactiveActionTimer) {
       clearInterval(this.proactiveActionTimer);
+      this.proactiveActionTimer = undefined;
     }
+    if (this.saveStateTimer) {
+      clearTimeout(this.saveStateTimer);
+      this.saveStateTimer = undefined;
+    }
+    // Final save before stopping
+    this.saveState().catch(err => {
+      console.warn(`[${this.agentName}] Failed to save final state:`, err);
+    });
   }
 
   /**
@@ -307,15 +336,13 @@ export abstract class AutonomousAgentBase {
   protected recordDecision(decision: AgentDecision): void {
     this.state.recentDecisions.push(decision);
     
-    // Keep only recent decisions
+    // Keep only recent decisions (use more efficient method)
     if (this.state.recentDecisions.length > this.DECISION_HISTORY_SIZE) {
-      this.state.recentDecisions.shift();
+      this.state.recentDecisions = this.state.recentDecisions.slice(-this.DECISION_HISTORY_SIZE);
     }
 
-    // Persist state
-    this.saveState().catch(err => {
-      console.warn(`[${this.agentName}] Failed to save state:`, err);
-    });
+    // Persist state (debounced to avoid excessive writes)
+    this.debouncedSaveState();
   }
 
   /**
@@ -325,9 +352,9 @@ export abstract class AutonomousAgentBase {
     // Add to learning history
     this.state.learningHistory.push(outcome);
 
-    // Keep only recent outcomes
+    // Keep only recent outcomes (more efficient than shift)
     if (this.state.learningHistory.length > this.LEARNING_WINDOW) {
-      this.state.learningHistory.shift();
+      this.state.learningHistory = this.state.learningHistory.slice(-this.LEARNING_WINDOW);
     }
 
     // Update performance metrics
@@ -487,12 +514,32 @@ export abstract class AutonomousAgentBase {
       const cached = await vultrValkey.get<AgentState>(
         `agent-state:${this.agentId}`
       );
-      if (cached) {
+      if (cached && this.isValidAgentState(cached)) {
         this.state = cached;
       }
     } catch (error) {
-      console.warn(`[${this.agentName}] Failed to load state from cache:`, error);
+      console.warn(`[${this.agentName}] Failed to load state from cache:`, {
+        agentId: this.agentId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
+  }
+
+  /**
+   * Validate agent state structure
+   */
+  private isValidAgentState(state: unknown): state is AgentState {
+    if (!state || typeof state !== 'object') return false;
+    const s = state as Record<string, unknown>;
+    return (
+      typeof s.agentId === 'string' &&
+      typeof s.health === 'string' &&
+      typeof s.performance === 'object' &&
+      Array.isArray(s.goals) &&
+      Array.isArray(s.recentDecisions) &&
+      Array.isArray(s.learningHistory) &&
+      typeof s.lastHealthCheck === 'number'
+    );
   }
 
   /**
