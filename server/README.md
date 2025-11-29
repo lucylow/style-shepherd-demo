@@ -83,6 +83,60 @@ Backend API server for the Style Shepherd voice commerce platform, built accordi
 - `POST /api/auth/callback` - Handle OAuth callback
 - `GET /api/auth/profile/:userId` - Get user profile
 
+### Sponsor Integrations (Hackathon)
+- `GET /api/sponsors` - Get all sponsor integration status and metrics
+- `GET /api/sponsors/:sponsorId` - Get specific sponsor details (ambient, cambrian, letta)
+- `GET /api/sponsors/metrics` - Get aggregated metrics for all sponsors
+- `GET /api/sponsors/ambient/analytics` - Get Ambient analytics data
+- `GET /api/sponsors/ambient/data-points` - Get Ambient data points metrics
+- `GET /api/sponsors/cambrian/onchain` - Get Cambrian onchain data metrics
+- `GET /api/sponsors/cambrian/offchain` - Get Cambrian offchain data metrics
+- `GET /api/sponsors/letta/workflows` - Get Letta workflow metrics
+- `GET /api/sponsors/letta/operations` - Get Letta operations metrics
+
+### MCP (Model Context Protocol)
+- `GET /api/mcp/tools` - List all available MCP tools
+- `GET /api/mcp/tools/:name` - Get specific tool definition
+- `POST /api/mcp/tools/:name/call` - Execute an MCP tool
+- `POST /api/mcp/call` - Alternative tool execution endpoint
+- `GET /api/mcp/info` - Get MCP server information
+
+### Verisense / SenseSpace
+- `GET /api/sensespace/token` - Get SenseSpace token
+- `GET /api/sensespace/profile/:id` - Get user profile from SenseSpace
+- `GET /api/verisense/profile/:id` - Alias for SenseSpace profile endpoint
+- `POST /api/verisense/agent-webhook` - Webhook endpoint for Verisense agent events
+
+### Verisense Nucleus
+- `GET /api/verisense-nucleus/status` - Get Nucleus status
+- `POST /api/verisense-nucleus/deposit` - Deposit funds to Nucleus
+- `POST /api/verisense-nucleus/preferences` - Store user preferences
+- `GET /api/verisense-nucleus/preferences/:userId` - Get user preferences
+- `POST /api/verisense-nucleus/recommendations` - Index recommendations
+- `GET /api/verisense-nucleus/recommendations/:userId` - Get recommendations
+- `GET /api/verisense-nucleus/health` - Health check
+
+### Human-in-the-Loop
+- `POST /api/human-in-the-loop/request` - Create approval request
+- `POST /api/human-in-the-loop/approve/:id` - Approve action
+- `POST /api/human-in-the-loop/reject/:id` - Reject action
+- `GET /api/human-in-the-loop/approval/:id` - Get specific approval
+- `GET /api/human-in-the-loop/approvals` - List approvals
+- `GET /api/human-in-the-loop/stats` - Get statistics
+
+### Agents
+- `GET /api/agents/agents` - Get all available agents
+- `GET /api/agents/agents/:agentId` - Get specific agent
+- `GET /api/agents/by-capability/:capability` - Get agents by capability
+- `POST /api/agents/suggest` - Suggest agent based on context
+
+### RAG Agent
+- `POST /api/rag-agent/query` - Query the RAG agent
+- `POST /api/rag-agent/index` - Index a document
+- `POST /api/rag-agent/index/batch` - Index multiple documents
+- `GET /api/rag-agent/stats` - Get index statistics
+- `DELETE /api/rag-agent/index` - Clear the index
+
 ## Architecture
 
 The backend follows the technical plan structure:
