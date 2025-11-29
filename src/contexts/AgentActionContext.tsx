@@ -45,7 +45,7 @@ export function AgentActionProvider({ children }: { children: ReactNode }) {
 
   const requestApproval = useCallback(
     async (action: Omit<AgentAction, 'id' | 'timestamp'>): Promise<boolean> => {
-      return new Promise(async (resolve) => {
+      return new Promise((resolve) => {
         const fullAction: AgentAction = {
           ...action,
           id: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -55,29 +55,31 @@ export function AgentActionProvider({ children }: { children: ReactNode }) {
         setResolvePromise(() => resolve);
 
         // Also create a backend approval request for audit trail
-        try {
-          // Get userId from localStorage or use a default
-          const userId = localStorage.getItem('userId') || 'guest';
-          
-          await humanInTheLoopService.createApprovalRequest({
-            userId,
-            agentId: 'style-shepherd-agent',
-            actionType: action.type,
-            title: action.title,
-            description: action.description,
-            reasoning: action.metadata?.reasoning,
-            confidence: action.metadata?.confidence,
-            riskLevel: action.metadata?.riskLevel,
-            metadata: {
-              products: action.products || (action.product ? [action.product] : []),
-              estimatedValue: action.metadata?.estimatedValue,
-              actionId: fullAction.id,
-            },
-          });
-        } catch (error) {
-          console.warn('Failed to create backend approval request:', error);
-          // Don't fail the approval flow if backend logging fails
-        }
+        (async () => {
+          try {
+            // Get userId from localStorage or use a default
+            const userId = localStorage.getItem('userId') || 'guest';
+            
+            await humanInTheLoopService.createApprovalRequest({
+              userId,
+              agentId: 'style-shepherd-agent',
+              actionType: action.type,
+              title: action.title,
+              description: action.description,
+              reasoning: action.metadata?.reasoning,
+              confidence: action.metadata?.confidence,
+              riskLevel: action.metadata?.riskLevel,
+              metadata: {
+                products: action.products || (action.product ? [action.product] : []),
+                estimatedValue: action.metadata?.estimatedValue,
+                actionId: fullAction.id,
+              },
+            });
+          } catch (error) {
+            console.warn('Failed to create backend approval request:', error);
+            // Don't fail the approval flow if backend logging fails
+          }
+        })();
       });
     },
     []
