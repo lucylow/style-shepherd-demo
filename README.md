@@ -154,6 +154,23 @@ Style Shepherd is registered as a Verisense AI agent with the following capabili
 ✅ **MiniApp Ready**: Interactive UI at `/verisense-demo`  
 ⏳ **Dashboard Registration**: Pending (manifest ready for upload)
 
+### Verisense Agent Import (how to test)
+
+1. The repo contains `agent.json` at project root and `public/.well-known/agent.json` (for Vite/React). The Dashboard can import either file via "From AgentCard JSON" (paste JSON) or "Import From Endpoint" (enter https://<YOUR_HOST>/.well-known/agent.json).
+
+2. Required fields:
+   - `input_media_types` (array) + `default_input_media_type` (string)
+   - `output_media_types` (array) + `default_output_media_type` (string)
+   - `security` must be an array (can be empty)
+   - No comments/trailing commas — valid JSON only
+
+3. Local validation:
+   - Run `node scripts/validate_agent_json.cjs` — it will validate media-type fields and fail loudly if missing.
+
+4. If dashboard JSON paste fails:
+   - Deploy `public/.well-known/agent.json` (Vercel/Netlify/GitHub Pages) and use "Import From Endpoint" in Verisense Dashboard (this bypasses some strict client-side parsers).
+   - If the full manifest still fails, try the minimal variant: `https://<YOUR_HOST>/.well-known/agent_minimal.json`
+
 ---
 
 ## 🚀 Quick Start & Demo

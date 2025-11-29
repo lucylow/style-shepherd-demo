@@ -1,0 +1,12 @@
+{
+  "id": "style-shepherd.agent.v1",
+  "name": "Style Shepherd",
+  "description": "Voice-first Personal Shopper & Makeup Artist",
+  "version": "1.0.0",
+  "url": "https://style-shepherd-demo.lovable.app/",
+  "input_media_types": ["text/plain"],
+  "default_input_media_type": "text/plain",
+  "output_media_types": ["application/json"],
+  "default_output_media_type": "application/json"
+}
+

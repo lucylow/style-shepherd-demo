@@ -1,0 +1,169 @@
+{
+  "id": "style-shepherd.agent.v1",
+  "name": "Style Shepherd",
+  "description": "Voice-first multi-modal Personal Shopper and Makeup Artist. Recommends sizes, styles, makeup looks; predicts and prevents returns; supports autonomous demo actions with AP2-style mandates.",
+  "version": "1.0.0",
+  "url": "https://style-shepherd-demo.lovable.app/",
+  "icon": "https://style-shepherd-demo.lovable.app/icon.png",
+  "documentation_url": "https://github.com/lucylow/style-shepherd-demo",
+  "provider": {
+    "name": "Lucy Low",
+    "url": "https://github.com/lucylow/style-shepherd-demo",
+    "email": "low.lucyy@gmail.com"
+  },
+  "price_rate": 1.0,
+  "input_media_types": [
+    "text/plain",
+    "text/markdown",
+    "application/json",
+    "image/jpeg",
+    "image/png",
+    "audio/mpeg"
+  ],
+  "default_input_media_type": "text/plain",
+  "output_media_types": [
+    "text/plain",
+    "application/json",
+    "image/png",
+    "audio/mpeg"
+  ],
+  "default_output_media_type": "application/json",
+  "media_type_support": {
+    "input_media_types": [
+      "text/plain",
+      "text/markdown",
+      "application/json",
+      "image/jpeg",
+      "image/png",
+      "audio/mpeg"
+    ],
+    "default_input_media_type": "text/plain",
+    "output_media_types": [
+      "text/plain",
+      "application/json",
+      "image/png",
+      "audio/mpeg"
+    ],
+    "default_output_media_type": "application/json"
+  },
+  "capabilities": {
+    "protocols": [
+      "A2A",
+      "MCP",
+      "AP2"
+    ],
+    "streaming": true,
+    "rag_enabled": true,
+    "memory_enabled": true,
+    "autonomy_level": "demo-autonomous"
+  },
+  "security": [],
+  "tools": [
+    {
+      "id": "size-oracle",
+      "name": "Size Oracle",
+      "description": "Normalizes sizing across brands and returns best-fit size and confidence.",
+      "endpoint": "https://style-shepherd-demo.lovable.app/tools/size-oracle",
+      "mcp_tool": true
+    },
+    {
+      "id": "returns-predictor",
+      "name": "Returns Predictor",
+      "description": "Predicts probability of return and estimates prevented-return value.",
+      "endpoint": "https://style-shepherd-demo.lovable.app/tools/returns-predictor",
+      "mcp_tool": true
+    },
+    {
+      "id": "search",
+      "name": "Search",
+      "description": "Product/trend/doc search (Searchable integration or demo fallback).",
+      "endpoint": "https://style-shepherd-demo.lovable.app/tools/search",
+      "mcp_tool": true
+    },
+    {
+      "id": "payment-manager",
+      "name": "Payment Manager (AP2 demo)",
+      "description": "Creates Intent/Cart/Payment mandates and executes demo payments (mock).",
+      "endpoint": "https://style-shepherd-demo.lovable.app/tools/payment-manager",
+      "mcp_tool": true,
+      "ap2_compliant": true
+    }
+  ],
+  "skills": [
+    {
+      "id": "personal-shopper",
+      "name": "Personal Shopper",
+      "description": "Finds items that match user style, size and budget; can create Cart Mandates upon explicit consent.",
+      "tags": ["shopping", "voice", "personalization"],
+      "examples": [
+        {
+          "input": "Find me a warm coat in neutral colors under $250.",
+          "output": "Coat results with size suggestions and cart options."
+        }
+      ]
+    },
+    {
+      "id": "makeup-artist",
+      "name": "Makeup Artist",
+      "description": "Suggests makeup looks and products based on skin tone and outfit, with step-by-step tips.",
+      "tags": ["makeup", "beauty", "style"],
+      "examples": [
+        {
+          "input": "Soft glam look for a navy dress.",
+          "output": "Palette, product suggestions, and instructions."
+        }
+      ]
+    },
+    {
+      "id": "returns-guardian",
+      "name": "Returns Guardian",
+      "description": "Autonomously polls merchant catalogs, runs returns prediction, and creates demo invoices when thresholds are met.",
+      "tags": ["autonomy", "finance", "sustainability"],
+      "examples": [
+        {
+          "input": "Run the weekly returns audit.",
+          "output": "Audit summary and demo invoice."
+        }
+      ]
+    },
+    {
+      "id": "style-trends",
+      "name": "Style Trends & Insights",
+      "description": "Aggregates trend signals from Ambient, Cambrian, and RAG sources to recommend trending styles.",
+      "tags": ["trends", "analytics"],
+      "examples": [
+        {
+          "input": "What's trending for denim jackets in SEA?",
+          "output": "Trend summary and SKU suggestions."
+        }
+      ]
+    }
+  ],
+  "audit_and_reproducibility": {
+    "evidence_logging": true,
+    "evidence_endpoint": "https://style-shepherd-demo.lovable.app/evidence",
+    "evidence_schema": {
+      "request_id": "string",
+      "user_id": "string",
+      "timestamp": "string",
+      "tools_used": ["string"],
+      "prompt": "string",
+      "sources": [
+        {
+          "source_id": "string",
+          "doc_id": "string",
+          "url": "string"
+        }
+      ],
+      "model_version": "string",
+      "output": "object"
+    },
+    "notes": "Every LLM recommendation includes source IDs and the prompt used; logs are persisted for audit and demo submission."
+  },
+  "endpoints": {
+    "jsonrpc": "https://style-shepherd-demo.lovable.app/a2a/jsonrpc",
+    "message_stream": "https://style-shepherd-demo.lovable.app/a2a/message/stream",
+    "health": "https://style-shepherd-demo.lovable.app/health"
+  }
+}
+
